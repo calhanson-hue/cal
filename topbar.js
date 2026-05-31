@@ -176,6 +176,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   <a href="nutrition.html" class="bottombar-tab" data-page="nutrition">
     <span class="bottombar-tab-icon">🥗</span><span>Nutrition</span>
   </a>
+  <a href="finance2.html" class="bottombar-tab" data-page="money">
+    <span class="bottombar-tab-icon">💰</span><span>Money</span>
+  </a>
 </nav>`;
 
   function isFinancePage() {
@@ -191,6 +194,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     if (p.endsWith('health.html')) return 'health';
     if (p.endsWith('gym.html')) return 'fitness';
     if (p.endsWith('nutrition.html')) return 'nutrition';
+    if (p.endsWith('finance2.html'))  return 'money';
     return 'main';
   }
 

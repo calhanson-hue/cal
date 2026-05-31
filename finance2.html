@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Money</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sync.js" defer></script>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-input: rgba(0,0,0,0.30);
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.14);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --good: #6ee7b7;
+  --warn: #fbbf24;
+  --bad: #ff8a8a;
+  --accent: #E07658;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 80% 8%,  rgba(224,118,88,0.12) 0%, transparent 55%),
+    radial-gradient(50% 45% at 15% 88%, rgba(180,180,200,0.05) 0%, transparent 60%);
+  filter: blur(36px);
+}
+main {
+  max-width: 700px; margin: 0 auto;
+  padding: 14px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left));
+}
+
+/* ── Shared card + title ─────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.sect-title {
+  font-family: var(--font-mono);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 16px;
+}
+.sect-title::before { content: '≡'; opacity: 0.5; font-size: 13px; }
+
+/* ── Summary grid ────────────────────────────────────── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sum-panel {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+}
+.sum-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  margin-bottom: 6px;
+}
+.sum-value {
+  font-size: 22px; font-weight: 800;
+  color: var(--text-primary); font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.sum-value.debt { color: var(--bad); }
+.sum-value.burn { color: var(--warn); }
+.sum-sub {
+  font-size: 11px; color: var(--text-tertiary);
+  margin-top: 4px; font-variant-numeric: tabular-nums;
+}
+
+/* ── Account rows ────────────────────────────────────── */
+.acct-group { display: flex; flex-direction: column; gap: 2px; }
+.group-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  padding: 10px 0 6px;
+}
+.group-label:first-child { padding-top: 0; }
+.acct-row {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 4px 0;
+}
+.acct-name {
+  flex: 1; font-size: 14px; color: var(--text-secondary);
+  min-width: 0; padding-right: 8px;
+}
+.bal-wrap {
+  display: flex; align-items: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.bal-wrap:focus-within { border-color: rgba(255,255,255,0.22); }
+.bal-prefix {
+  padding: 0 4px 0 10px;
+  color: var(--text-tertiary); font-size: 13px; font-family: var(--font-mono);
+  flex-shrink: 0; user-select: none;
+}
+.bal-input {
+  width: 100px;
+  background: transparent; border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 15px; font-weight: 700;
+  text-align: right; padding: 10px 10px 10px 0;
+  -webkit-appearance: none;
+}
+.bal-input:focus { outline: none; }
+.bal-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+
+/* ── Section divider ─────────────────────────────────── */
+.sect-divider {
+  height: 1px; background: var(--border);
+  margin: 12px 0;
+}
+
+/* ── Subtotals ───────────────────────────────────────── */
+.subtotals { display: flex; gap: 10px; margin: 14px 0 0; flex-wrap: wrap; }
+.subtotal-chip {
+  display: flex; flex-direction: column;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  flex: 1; min-width: 100px;
+}
+.subtotal-chip.credit { border-color: rgba(255,138,138,0.18); }
+.subtotal-lbl {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+.subtotal-val {
+  font-size: 18px; font-weight: 800;
+  color: var(--text-primary); font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.subtotal-chip.credit .subtotal-val { color: var(--bad); }
+
+/* ── Save row ────────────────────────────────────────── */
+.save-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 14px; flex-wrap: wrap;
+}
+.save-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-primary); font-family: var(--font);
+  font-size: 13px; font-weight: 600; padding: 10px 18px;
+  cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.save-btn:hover { background: rgba(255,255,255,0.12); }
+.save-btn:active { transform: scale(0.97); }
+.updated-lbl {
+  font-size: 11px; color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+.save-flash {
+  font-size: 11px; color: var(--good);
+  font-family: var(--font-mono); letter-spacing: 0.04em;
+  opacity: 0; transition: opacity 0.25s; margin-left: auto;
+}
+.save-flash.show { opacity: 1; }
+
+/* ── Debt sparkline ──────────────────────────────────── */
+.spark-section { margin-top: 14px; }
+.spark-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+.sparkline-outer {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.sparkline-svg { width: 100%; height: 52px; display: block; }
+.spark-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 8px; font-size: 11px;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.spark-start { color: var(--text-tertiary); }
+.spark-end   { color: var(--text-primary); font-weight: 700; }
+.spark-delta { font-weight: 700; }
+.spark-delta.down { color: var(--good); }
+.spark-delta.up   { color: var(--bad); }
+.spark-empty { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 12px 0; }
+
+/* ── Expense list ────────────────────────────────────── */
+.expense-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.expense-row {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 44px;
+}
+.expense-name-wrap { flex: 1; min-width: 0; }
+.expense-name-input {
+  width: 100%; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-primary); font-family: var(--font);
+  font-size: 14px; padding: 9px 12px;
+  transition: border-color 0.15s;
+}
+.expense-name-input::placeholder { color: var(--text-tertiary); }
+.expense-name-input:focus { outline: none; border-color: rgba(255,255,255,0.20); }
+.expense-amt-wrap {
+  display: flex; align-items: center;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 8px; flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.expense-amt-wrap:focus-within { border-color: rgba(255,255,255,0.22); }
+.expense-amt-input {
+  width: 78px; background: transparent; border: none;
+  color: var(--text-primary); font-family: var(--font-mono);
+  font-size: 14px; font-weight: 700;
+  text-align: right; padding: 9px 9px 9px 0;
+  -webkit-appearance: none;
+}
+.expense-amt-input:focus { outline: none; }
+.expense-amt-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+.remove-btn {
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-tertiary);
+  font-size: 18px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.remove-btn:hover { background: rgba(255,138,138,0.12); color: var(--bad); border-color: rgba(255,138,138,0.25); }
+.add-expense-btn {
+  width: 100%; background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 10px; color: var(--text-tertiary);
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  padding: 11px; cursor: pointer; margin-bottom: 14px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.add-expense-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+.burn-total-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.burn-lbl { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+.burn-val {
+  font-size: 20px; font-weight: 800; font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums; color: var(--warn);
+}
+
+@media (max-width: 480px) {
+  .card { padding: 14px; }
+  .bal-input { width: 86px; font-size: 14px; }
+  .sum-value { font-size: 18px; }
+  .expense-amt-input { width: 70px; }
+  .summary-grid { gap: 8px; }
+  .sum-panel { padding: 12px; }
+}
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ── Summary ──────────────────────────────────── -->
+  <div class="card" id="summaryCard">
+    <div class="sect-title">Summary</div>
+    <div class="summary-grid" id="summaryGrid">
+      <div class="sum-panel">
+        <div class="sum-label">Personal Cash</div>
+        <div class="sum-value" id="sumPersCash">$—</div>
+        <div class="sum-sub" id="sumPersCashSub"></div>
+      </div>
+      <div class="sum-panel">
+        <div class="sum-label">Business Cash</div>
+        <div class="sum-value" id="sumBizCash">$—</div>
+        <div class="sum-sub" id="sumBizCashSub"></div>
+      </div>
+      <div class="sum-panel">
+        <div class="sum-label">Total Debt</div>
+        <div class="sum-value debt" id="sumDebt">$—</div>
+        <div class="sum-sub" id="sumCreditSub"></div>
+      </div>
+      <div class="sum-panel">
+        <div class="sum-label">Monthly Burn</div>
+        <div class="sum-value burn" id="sumBurn">$—</div>
+        <div class="sum-sub" id="sumBurnSub"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Personal Accounts ─────────────────────────── -->
+  <div class="card">
+    <div class="sect-title">Personal Accounts</div>
+
+    <div class="acct-group">
+      <div class="group-label">Bank Accounts</div>
+      <div class="acct-row">
+        <span class="acct-name">FSB Checking</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_fsb_checking" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="acct-row">
+        <span class="acct-name">FSB Savings</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_fsb_savings" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <div class="sect-divider"></div>
+
+    <div class="acct-group">
+      <div class="group-label">Credit Cards</div>
+      <div class="acct-row">
+        <span class="acct-name">Capital One</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_capital_one_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="acct-row">
+        <span class="acct-name">Discover</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_discover_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="acct-row">
+        <span class="acct-name">Scheels</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_scheels_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <div class="subtotals">
+      <div class="subtotal-chip">
+        <div class="subtotal-lbl">Cash</div>
+        <div class="subtotal-val" id="st_pers_cash">$—</div>
+      </div>
+      <div class="subtotal-chip credit">
+        <div class="subtotal-lbl">Credit Owed</div>
+        <div class="subtotal-val" id="st_pers_credit">$—</div>
+      </div>
+    </div>
+
+    <div class="save-row">
+      <button class="save-btn" id="savePersonalBtn">Save</button>
+      <span class="updated-lbl" id="personalUpdatedLbl">Never saved</span>
+      <span class="save-flash" id="personalFlash">Saved ✓</span>
+    </div>
+  </div>
+
+  <!-- ── Business Accounts ─────────────────────────── -->
+  <div class="card">
+    <div class="sect-title">Business Accounts</div>
+
+    <div class="acct-group">
+      <div class="group-label">Bank Accounts</div>
+      <div class="acct-row">
+        <span class="acct-name">Chase Business Checking</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_chase_checking" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="acct-row">
+        <span class="acct-name">Chase Business Savings</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_chase_savings" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <div class="sect-divider"></div>
+
+    <div class="acct-group">
+      <div class="group-label">Credit Card</div>
+      <div class="acct-row">
+        <span class="acct-name">Chase Business Credit Card</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_chase_biz_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <div class="subtotals">
+      <div class="subtotal-chip">
+        <div class="subtotal-lbl">Cash</div>
+        <div class="subtotal-val" id="st_biz_cash">$—</div>
+      </div>
+      <div class="subtotal-chip credit">
+        <div class="subtotal-lbl">Credit Owed</div>
+        <div class="subtotal-val" id="st_biz_credit">$—</div>
+      </div>
+    </div>
+
+    <div class="save-row">
+      <button class="save-btn" id="saveBusinessBtn">Save</button>
+      <span class="updated-lbl" id="businessUpdatedLbl">Never saved</span>
+      <span class="save-flash" id="businessFlash">Saved ✓</span>
+    </div>
+  </div>
+
+  <!-- ── Loans & Debt ───────────────────────────────── -->
+  <div class="card">
+    <div class="sect-title">Loans &amp; Debt</div>
+
+    <div class="acct-group">
+      <div class="acct-row">
+        <span class="acct-name">Car Loan</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_car_loan" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="acct-row">
+        <span class="acct-name">Student Loans</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_student_loans" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+      <div class="acct-row">
+        <span class="acct-name">Dental Implants</span>
+        <div class="bal-wrap"><span class="bal-prefix">$</span>
+          <input class="bal-input" id="b_dental" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+      </div>
+    </div>
+
+    <div class="subtotals">
+      <div class="subtotal-chip credit" style="flex-basis:100%">
+        <div class="subtotal-lbl">Total Remaining Debt</div>
+        <div class="subtotal-val" id="st_debt_total">$—</div>
+      </div>
+    </div>
+
+    <div class="spark-section">
+      <div class="spark-title">Debt Paydown Trend</div>
+      <div id="debtSparkContainer"></div>
+    </div>
+
+    <div class="save-row">
+      <button class="save-btn" id="saveDebtBtn">Save &amp; Record</button>
+      <span class="updated-lbl" id="debtUpdatedLbl">Never saved</span>
+      <span class="save-flash" id="debtFlash">Saved ✓</span>
+    </div>
+  </div>
+
+  <!-- ── Personal Monthly Expenses ─────────────────── -->
+  <div class="card">
+    <div class="sect-title">Personal Monthly Expenses</div>
+    <div class="expense-list" id="persExpList"></div>
+    <button class="add-expense-btn" id="addPersExpBtn">+ Add Expense</button>
+    <div class="burn-total-row">
+      <span class="burn-lbl">Monthly Personal Burn</span>
+      <span class="burn-val" id="persBurnTotal">$0.00</span>
+    </div>
+  </div>
+
+  <!-- ── Business Monthly Expenses ─────────────────── -->
+  <div class="card">
+    <div class="sect-title">Business Monthly Expenses</div>
+    <div class="expense-list" id="bizExpList"></div>
+    <button class="add-expense-btn" id="addBizExpBtn">+ Add Expense</button>
+    <div class="burn-total-row">
+      <span class="burn-lbl">Monthly Business Burn</span>
+      <span class="burn-val" id="bizBurnTotal">$0.00</span>
+    </div>
+  </div>
+
+</main>
+<script>
+(function () {
+  'use strict';
+
+  const KEY = 'finance2_v1';
+
+  // ── Account definitions ────────────────────────────────────────────────
+  const PERS_CASH    = ['fsb_checking', 'fsb_savings'];
+  const PERS_CREDIT  = ['capital_one_cc', 'discover_cc', 'scheels_cc'];
+  const BIZ_CASH     = ['chase_checking', 'chase_savings'];
+  const BIZ_CREDIT   = ['chase_biz_cc'];
+  const DEBT_KEYS    = ['car_loan', 'student_loans', 'dental'];
+
+  // ── Storage ────────────────────────────────────────────────────────────
+  function load() {
+    try {
+      const r = localStorage.getItem(KEY);
+      if (r) { const d = JSON.parse(r); if (d && typeof d === 'object') return d; }
+    } catch (e) {}
+    return {
+      personalAccounts: {}, personalUpdated: null,
+      businessAccounts: {}, businessUpdated: null,
+      debtAccounts: {},     debtHistory: [],    debtUpdated: null,
+      personalExpenses: [], businessExpenses: [],
+    };
+  }
+  function persist(d) {
+    try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  // ── Formatting ──────────────────────────────────────────────────────────
+  function fmt(n) {
+    if (n == null) return '$—';
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtUpdated(iso) {
+    if (!iso) return 'Never saved';
+    try {
+      const d   = new Date(iso);
+      const now = new Date();
+      const diffMs   = now - d;
+      const diffDays = Math.floor(diffMs / 86400000);
+      const timeStr  = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const mons     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      if (diffDays === 0) return 'Saved today at ' + timeStr;
+      if (diffDays === 1) return 'Saved yesterday at ' + timeStr;
+      return 'Saved ' + mons[d.getMonth()] + ' ' + d.getDate() + ' at ' + timeStr;
+    } catch (e) { return 'Saved'; }
+  }
+  function parseVal(id) {
+    const el = document.getElementById(id);
+    if (!el || el.value.trim() === '') return null;
+    const n = parseFloat(el.value);
+    return isNaN(n) ? null : Math.round(n * 100) / 100;
+  }
+  function sumKeys(bag, keys) {
+    let total = 0, hasAny = false;
+    keys.forEach(k => { if (bag[k] != null) { total += bag[k]; hasAny = true; } });
+    return hasAny ? total : null;
+  }
+  function uid() { return 'e' + Date.now() + '_' + Math.floor(Math.random() * 9999); }
+
+  // ── Flash helper ────────────────────────────────────────────────────────
+  const flashTimers = {};
+  function flash(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('show');
+    clearTimeout(flashTimers[id]);
+    flashTimers[id] = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  // ── Summary ─────────────────────────────────────────────────────────────
+  function renderSummary() {
+    const d = load();
+    const pa = d.personalAccounts || {};
+    const ba = d.businessAccounts || {};
+    const da = d.debtAccounts     || {};
+    const pe = d.personalExpenses || [];
+    const be = d.businessExpenses || [];
+
+    const persCash   = sumKeys(pa, PERS_CASH);
+    const persCredit = sumKeys(pa, PERS_CREDIT);
+    const bizCash    = sumKeys(ba, BIZ_CASH);
+    const bizCredit  = sumKeys(ba, BIZ_CREDIT);
+    const totalDebt  = sumKeys(da, DEBT_KEYS);
+
+    let persExpTotal = 0; pe.forEach(e => { if (e.amount) persExpTotal += e.amount; });
+    let bizExpTotal  = 0; be.forEach(e => { if (e.amount) bizExpTotal  += e.amount; });
+    const totalBurn  = persExpTotal + bizExpTotal;
+
+    const el = id => document.getElementById(id);
+
+    el('sumPersCash').textContent  = persCash   != null ? fmt(persCash) : '$—';
+    el('sumPersCashSub').textContent = persCredit != null ? fmt(persCredit) + ' credit owed' : '';
+    el('sumBizCash').textContent   = bizCash    != null ? fmt(bizCash) : '$—';
+    el('sumBizCashSub').textContent = bizCredit != null ? fmt(bizCredit) + ' credit owed' : '';
+    el('sumDebt').textContent      = totalDebt  != null ? fmt(totalDebt) : '$—';
+    el('sumCreditSub').textContent = (persCredit != null || bizCredit != null)
+      ? fmt((persCredit || 0) + (bizCredit || 0)) + ' total credit cards'
+      : '';
+    el('sumBurn').textContent      = totalBurn  > 0 ? fmt(totalBurn) + '/mo' : '$—';
+    el('sumBurnSub').textContent   = totalBurn > 0
+      ? fmt(persExpTotal) + ' personal · ' + fmt(bizExpTotal) + ' business'
+      : '';
+  }
+
+  // ── Populate balance inputs from data ───────────────────────────────────
+  function populateInputs(bag, keys) {
+    keys.forEach(k => {
+      const el = document.getElementById('b_' + k);
+      if (!el) return;
+      el.value = bag[k] != null ? bag[k] : '';
+    });
+  }
+
+  // ── Live subtotals while editing ────────────────────────────────────────
+  function updatePersonalSubtotals() {
+    const cash   = PERS_CASH.reduce((s, k)   => s + (parseVal('b_' + k)   || 0), 0);
+    const credit = PERS_CREDIT.reduce((s, k) => s + (parseVal('b_' + k)   || 0), 0);
+    const cashHas   = PERS_CASH.some(k   => parseVal('b_' + k) != null);
+    const creditHas = PERS_CREDIT.some(k => parseVal('b_' + k) != null);
+    document.getElementById('st_pers_cash').textContent   = cashHas   ? fmt(cash)   : '$—';
+    document.getElementById('st_pers_credit').textContent = creditHas ? fmt(credit) : '$—';
+  }
+  function updateBusinessSubtotals() {
+    const cash   = BIZ_CASH.reduce((s, k)    => s + (parseVal('b_' + k) || 0), 0);
+    const credit = BIZ_CREDIT.reduce((s, k)  => s + (parseVal('b_' + k) || 0), 0);
+    const cashHas   = BIZ_CASH.some(k   => parseVal('b_' + k) != null);
+    const creditHas = BIZ_CREDIT.some(k => parseVal('b_' + k) != null);
+    document.getElementById('st_biz_cash').textContent   = cashHas   ? fmt(cash)   : '$—';
+    document.getElementById('st_biz_credit').textContent = creditHas ? fmt(credit) : '$—';
+  }
+  function updateDebtSubtotals() {
+    const total   = DEBT_KEYS.reduce((s, k) => s + (parseVal('b_' + k) || 0), 0);
+    const hasAny  = DEBT_KEYS.some(k => parseVal('b_' + k) != null);
+    document.getElementById('st_debt_total').textContent = hasAny ? fmt(total) : '$—';
+  }
+
+  // ── Debt sparkline ──────────────────────────────────────────────────────
+  function renderSparkline() {
+    const history = (load().debtHistory || []).slice(-20);
+    const container = document.getElementById('debtSparkContainer');
+    if (history.length < 2) {
+      container.innerHTML = '<div class="spark-empty">Save at least 2 weeks to see the paydown trend</div>';
+      return;
+    }
+    const totals = history.map(h => h.total);
+    const min  = Math.min(...totals);
+    const max  = Math.max(...totals);
+    const rng  = max - min || 1;
+    const W = 400, H = 52, pad = 6;
+    const pts = totals.map((t, i) => {
+      const x = pad + (i / (totals.length - 1)) * (W - 2 * pad);
+      const y = pad + (1 - (t - min) / rng) * (H - 2 * pad);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    const stroke = totals[totals.length - 1] <= totals[0] ? 'var(--good)' : 'var(--bad)';
+    const diff   = totals[totals.length - 1] - totals[0];
+    const diffCls = diff <= 0 ? 'down' : 'up';
+    const diffSign = diff <= 0 ? '↓ ' : '↑ +';
+    container.innerHTML = `
+      <div class="sparkline-outer">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="sparkline-svg">
+          <polyline points="${pts}" fill="none" stroke="${stroke}"
+            stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <div class="spark-meta">
+          <span class="spark-start">${fmt(totals[0])}</span>
+          <span class="spark-delta ${diffCls}">${diffSign}${fmt(Math.abs(diff))}</span>
+          <span class="spark-end">${fmt(totals[totals.length - 1])}</span>
+        </div>
+      </div>`;
+  }
+
+  // ── Expense list renderer ───────────────────────────────────────────────
+  function renderExpenses(listId, items, burnId) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    if (items.length === 0) {
+      list.innerHTML = '';
+    } else {
+      list.innerHTML = items.map(item => `
+        <div class="expense-row" data-id="${item.id}">
+          <div class="expense-name-wrap">
+            <input class="expense-name-input" type="text"
+              placeholder="Expense name" value="${escHtml(item.name || '')}"
+              autocomplete="off" spellcheck="false">
+          </div>
+          <div class="expense-amt-wrap">
+            <span class="bal-prefix">$</span>
+            <input class="expense-amt-input" type="number" step="0.01" min="0"
+              placeholder="0.00" value="${item.amount != null ? item.amount : ''}"
+              inputmode="decimal">
+          </div>
+          <button class="remove-btn" aria-label="Remove" data-remove="${item.id}">×</button>
+        </div>`).join('');
+    }
+    let total = 0;
+    items.forEach(e => { if (e.amount) total += e.amount; });
+    document.getElementById(burnId).textContent = fmt(total);
+  }
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Expense auto-save with debounce ────────────────────────────────────
+  let expTimer = null;
+  function scheduleExpSave() {
+    clearTimeout(expTimer);
+    expTimer = setTimeout(saveExpenses, 500);
+  }
+  function saveExpenses() {
+    const d = load();
+    d.personalExpenses = readExpenseList('persExpList');
+    d.businessExpenses = readExpenseList('bizExpList');
+    persist(d);
+    renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
+    renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
+    renderSummary();
+  }
+  function readExpenseList(listId) {
+    const list = document.getElementById(listId);
+    if (!list) return [];
+    const rows = list.querySelectorAll('.expense-row');
+    const items = [];
+    rows.forEach(row => {
+      const id     = row.dataset.id;
+      const name   = (row.querySelector('.expense-name-input')?.value || '').trim();
+      const amtEl  = row.querySelector('.expense-amt-input');
+      const amount = amtEl && amtEl.value.trim() !== '' ? parseFloat(amtEl.value) : null;
+      if (name || amount != null) {
+        items.push({ id, name, amount: amount != null && !isNaN(amount) ? Math.round(amount * 100) / 100 : null });
+      }
+    });
+    return items;
+  }
+
+  // ── Wire expense list events (delegated) ────────────────────────────────
+  function wireExpenseList(listId, addBtnId) {
+    const list = document.getElementById(listId);
+    if (!list) return;
+    list.addEventListener('input', e => {
+      if (e.target.matches('.expense-name-input,.expense-amt-input')) scheduleExpSave();
+    });
+    list.addEventListener('click', e => {
+      const btn = e.target.closest('[data-remove]');
+      if (!btn) return;
+      const id = btn.dataset.remove;
+      const d  = load();
+      if (listId === 'persExpList') d.personalExpenses = d.personalExpenses.filter(x => x.id !== id);
+      else                          d.businessExpenses = d.businessExpenses.filter(x => x.id !== id);
+      persist(d);
+      renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
+      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
+      renderSummary();
+    });
+    document.getElementById(addBtnId).addEventListener('click', () => {
+      const d = load();
+      const newItem = { id: uid(), name: '', amount: null };
+      if (listId === 'persExpList') d.personalExpenses.push(newItem);
+      else                          d.businessExpenses.push(newItem);
+      persist(d);
+      renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
+      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
+      // Focus the new name input
+      const rows = document.getElementById(listId).querySelectorAll('.expense-row');
+      if (rows.length > 0) rows[rows.length - 1].querySelector('.expense-name-input')?.focus();
+    });
+  }
+
+  // ── Save section handlers ───────────────────────────────────────────────
+  function wireAccountSection(keys, bagKey, updKey, updLblId, flashId, subFn, saveBtn) {
+    // Live subtotals on input
+    document.querySelectorAll(keys.map(k => '#b_' + k).join(',')).forEach(el => {
+      el.addEventListener('input', subFn);
+    });
+    // Save button
+    document.getElementById(saveBtn).addEventListener('click', () => {
+      const d = load();
+      d[bagKey] = d[bagKey] || {};
+      keys.forEach(k => { d[bagKey][k] = parseVal('b_' + k); });
+      d[updKey] = new Date().toISOString();
+      persist(d);
+      document.getElementById(updLblId).textContent = fmtUpdated(d[updKey]);
+      flash(flashId);
+      renderSummary();
+    });
+  }
+
+  function wireDebtSection() {
+    DEBT_KEYS.map(k => document.getElementById('b_' + k)).forEach(el => {
+      if (el) el.addEventListener('input', updateDebtSubtotals);
+    });
+    document.getElementById('saveDebtBtn').addEventListener('click', () => {
+      const d = load();
+      d.debtAccounts = d.debtAccounts || {};
+      DEBT_KEYS.forEach(k => { d.debtAccounts[k] = parseVal('b_' + k); });
+      d.debtUpdated  = new Date().toISOString();
+      // Record history entry (one per day)
+      const today   = new Date().toISOString().slice(0, 10);
+      const total   = DEBT_KEYS.reduce((s, k) => s + (d.debtAccounts[k] || 0), 0);
+      d.debtHistory = d.debtHistory || [];
+      const existing = d.debtHistory.findIndex(h => h.date === today);
+      if (existing >= 0) d.debtHistory[existing].total = total;
+      else               d.debtHistory.push({ date: today, total });
+      if (d.debtHistory.length > 24) d.debtHistory.splice(0, d.debtHistory.length - 24);
+      persist(d);
+      document.getElementById('debtUpdatedLbl').textContent = fmtUpdated(d.debtUpdated);
+      flash('debtFlash');
+      renderSummary();
+      renderSparkline();
+    });
+  }
+
+  // ── Full render ─────────────────────────────────────────────────────────
+  function fullRender() {
+    const d = load();
+    const pa = d.personalAccounts || {};
+    const ba = d.businessAccounts || {};
+    const da = d.debtAccounts     || {};
+
+    populateInputs(pa, [...PERS_CASH, ...PERS_CREDIT]);
+    populateInputs(ba, [...BIZ_CASH,  ...BIZ_CREDIT]);
+    populateInputs(da, DEBT_KEYS);
+
+    updatePersonalSubtotals();
+    updateBusinessSubtotals();
+    updateDebtSubtotals();
+    renderSparkline();
+
+    document.getElementById('personalUpdatedLbl').textContent = fmtUpdated(d.personalUpdated);
+    document.getElementById('businessUpdatedLbl').textContent = fmtUpdated(d.businessUpdated);
+    document.getElementById('debtUpdatedLbl').textContent     = fmtUpdated(d.debtUpdated);
+
+    renderExpenses('persExpList', d.personalExpenses || [], 'persBurnTotal');
+    renderExpenses('bizExpList',  d.businessExpenses || [], 'bizBurnTotal');
+    renderSummary();
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────
+  function init() {
+    fullRender();
+
+    wireAccountSection(
+      [...PERS_CASH, ...PERS_CREDIT],
+      'personalAccounts', 'personalUpdated',
+      'personalUpdatedLbl', 'personalFlash',
+      updatePersonalSubtotals, 'savePersonalBtn'
+    );
+    wireAccountSection(
+      [...BIZ_CASH, ...BIZ_CREDIT],
+      'businessAccounts', 'businessUpdated',
+      'businessUpdatedLbl', 'businessFlash',
+      updateBusinessSubtotals, 'saveBusinessBtn'
+    );
+    wireDebtSection();
+    wireExpenseList('persExpList', 'addPersExpBtn');
+    wireExpenseList('bizExpList',  'addBizExpBtn');
+
+    window.addEventListener('storage', () => {
+      const ae = document.activeElement;
+      if (ae && ae.matches('.bal-input,.expense-name-input,.expense-amt-input')) return;
+      fullRender();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof initCloudSync !== 'function') return;
+  initCloudSync({
+    appKey: 'finance2',
+    syncedKeys: ['finance2_v1'],
+    onApplied: function () { window.dispatchEvent(new Event('storage')); }
+  });
+});
+</script>
+</body>
+</html>
