@@ -121,6 +121,10 @@ body.has-bottombar {
   .bottombar-tab-icon { font-size: 22px; }
   .bottombar-tab { font-size: 10px; }
 }
+@media (max-width: 430px) {
+  .bottombar-tab-icon { font-size: 19px; }
+  .bottombar-tab { font-size: 9px; }
+}
 html, body { -webkit-text-size-adjust: 100%; }
 @media (max-width: 768px) {
   html { touch-action: pan-y; }
@@ -179,6 +183,9 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
   <a href="finance2.html" class="bottombar-tab" data-page="money">
     <span class="bottombar-tab-icon">💰</span><span>Money</span>
   </a>
+  <a href="hygiene.html" class="bottombar-tab" data-page="hygiene">
+    <span class="bottombar-tab-icon">🧼</span><span>Hygiene</span>
+  </a>
 </nav>`;
 
   function isFinancePage() {
@@ -195,6 +202,7 @@ body.topbar-modal-open { overflow: hidden; touch-action: none; }
     if (p.endsWith('gym.html')) return 'fitness';
     if (p.endsWith('nutrition.html')) return 'nutrition';
     if (p.endsWith('finance2.html'))  return 'money';
+    if (p.endsWith('hygiene.html'))   return 'hygiene';
     return 'main';
   }
 

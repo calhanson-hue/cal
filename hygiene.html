@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Hygiene</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sync.js" defer></script>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-input: rgba(0,0,0,0.30);
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.14);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --good: #6ee7b7;
+  --warn: #fbbf24;
+  --bad: #ff8a8a;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--font); font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  min-height: 100%; overflow-x: hidden;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 75% 8%,  rgba(110,231,183,0.08) 0%, transparent 55%),
+    radial-gradient(50% 40% at 20% 88%, rgba(180,180,200,0.05) 0%, transparent 60%);
+  filter: blur(32px);
+}
+main {
+  max-width: 680px; margin: 0 auto;
+  padding: 12px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left));
+}
+
+/* ── Card ─── */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px 18px 16px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Section title ─── */
+.sect-title {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+}
+.sect-title::before { content: '≡'; opacity: 0.5; font-size: 13px; }
+
+/* ── Date nav ─── */
+.date-nav {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.date-nav-label {
+  flex: 1; text-align: center;
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+}
+.nav-btn {
+  flex-shrink: 0; width: 34px; height: 34px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-secondary); font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.09); color: var(--text-primary); }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Routine header ─── */
+.routine-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.routine-title {
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 8px;
+}
+.routine-title::before { content: '≡'; opacity: 0.5; font-size: 13px; }
+.routine-progress {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+.routine-progress.done { color: var(--good); }
+
+/* ── Checklist item ─── */
+.check-list { display: flex; flex-direction: column; }
+.check-item {
+  display: flex; align-items: center; gap: 13px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+  user-select: none;
+}
+.check-item:last-child { border-bottom: none; padding-bottom: 0; }
+.check-item:first-child { padding-top: 0; }
+.check-circle {
+  width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.18s, border-color 0.18s;
+}
+.check-item.checked .check-circle {
+  background: var(--good); border-color: var(--good);
+}
+.check-circle-tick {
+  font-size: 12px; font-weight: 900; color: #0a0a0b;
+  opacity: 0; transform: scale(0.5);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.check-item.checked .check-circle-tick { opacity: 1; transform: scale(1); }
+.check-label {
+  font-size: 14px; font-weight: 500; color: var(--text-primary);
+  flex: 1; transition: opacity 0.15s, color 0.15s;
+}
+.check-item.checked .check-label {
+  opacity: 0.38; color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+.routine-card { margin-bottom: 10px; }
+.routine-card:last-of-type { margin-bottom: 0; }
+
+/* ── Streak panels ─── */
+.streak-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px;
+}
+.streak-panel {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px;
+}
+.streak-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono); margin-bottom: 6px;
+}
+.streak-val {
+  font-size: 32px; font-weight: 800; color: var(--text-primary);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.streak-val.active { color: var(--good); }
+.streak-unit { font-size: 13px; font-weight: 600; color: var(--text-tertiary); margin-left: 3px; }
+
+/* ── Calendar heatmap ─── */
+.cal-nav-row {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.cal-month-lbl { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.cal-btns { display: flex; gap: 2px; }
+.cal-btn {
+  background: transparent; border: none; color: var(--text-tertiary);
+  font-size: 17px; font-weight: 700; cursor: pointer; padding: 2px 8px;
+  border-radius: 6px; -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, background 0.15s;
+}
+.cal-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.07); }
+.cal-dow {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  text-align: center; font-family: var(--font-mono);
+  font-size: 9.5px; letter-spacing: 0.08em; color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+.heatmap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.hm-cell-wrap { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.hm-cell {
+  width: 30px; height: 30px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  cursor: pointer; transition: transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hm-cell.empty { opacity: 0; pointer-events: none; }
+.hm-cell:not(.empty):hover { transform: scale(1.12); }
+.hm-cell.today-ring { border: 1.5px solid rgba(255,255,255,0.28); color: var(--text-primary); }
+.hm-cell.selected { box-shadow: 0 0 0 2px rgba(255,255,255,0.30); }
+.hm-cell.hm-complete { background: rgba(110,231,183,0.25); color: var(--good); }
+.hm-cell.hm-partial  { background: rgba(251,191,36,0.22);  color: var(--warn); }
+.hm-cell.hm-logged   { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+.hm-cell.hm-none     { background: rgba(255,255,255,0.03); }
+
+.cal-legend {
+  display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;
+  font-size: 11px; color: var(--text-tertiary);
+}
+.leg-item { display: flex; align-items: center; gap: 5px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.leg-dot.good   { background: var(--good); opacity: 0.75; }
+.leg-dot.warn   { background: var(--warn); opacity: 0.75; }
+.leg-dot.logged { background: rgba(255,255,255,0.12); }
+
+/* ── Progress photos ─── */
+.photo-upload-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px;
+  background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.14);
+  border-radius: 12px; color: var(--text-secondary);
+  font-family: var(--font); font-size: 14px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s; margin-bottom: 14px;
+}
+.photo-upload-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.photo-upload-input { display: none; }
+.photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.photo-card {
+  position: relative; border-radius: 10px; overflow: hidden;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+}
+.photo-card img {
+  display: block; width: 100%; aspect-ratio: 3/4; object-fit: cover;
+}
+.photo-card-meta {
+  padding: 8px 10px 10px;
+}
+.photo-date {
+  font-size: 11px; font-family: var(--font-mono); color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+.photo-notes-input {
+  width: 100%; background: transparent; border: none;
+  color: var(--text-secondary); font-family: var(--font); font-size: 12px;
+  line-height: 1.45; resize: none; padding: 0;
+}
+.photo-notes-input::placeholder { color: var(--text-tertiary); }
+.photo-notes-input:focus { outline: none; color: var(--text-primary); }
+.photo-remove-btn {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(0,0,0,0.65); border: none; color: rgba(255,255,255,0.7);
+  font-size: 15px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.photo-remove-btn:hover { background: rgba(255,60,60,0.75); color: #fff; }
+.photo-empty { font-size: 13px; color: var(--text-tertiary); text-align: center; padding: 20px 0; }
+
+/* ── Products ─── */
+.product-card {
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px; margin-bottom: 10px;
+}
+.product-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+.product-row:last-of-type { margin-bottom: 0; }
+.product-input, .product-select, .product-notes {
+  flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-primary);
+  font-family: var(--font); font-size: 13px; padding: 8px 10px;
+  transition: border-color 0.15s;
+}
+.product-input:focus, .product-select:focus, .product-notes:focus {
+  outline: none; border-color: rgba(255,255,255,0.20);
+}
+.product-input::placeholder, .product-notes::placeholder { color: var(--text-tertiary); }
+.product-select {
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%2376746E' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px; cursor: pointer;
+}
+.product-select option { background: #111113; }
+.product-notes { resize: none; min-height: 54px; }
+.product-header-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.product-name-inp {
+  flex: 1; background: transparent; border: none;
+  color: var(--text-primary); font-family: var(--font);
+  font-size: 14px; font-weight: 700; padding: 0;
+}
+.product-name-inp::placeholder { color: var(--text-tertiary); font-weight: 400; }
+.product-name-inp:focus { outline: none; }
+.product-remove-btn {
+  flex-shrink: 0; width: 28px; height: 28px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 7px; color: var(--text-tertiary); font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.product-remove-btn:hover { background: rgba(255,138,138,0.12); color: var(--bad); border-color: rgba(255,138,138,0.25); }
+.add-product-btn {
+  width: 100%; padding: 12px;
+  background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 10px; color: var(--text-tertiary);
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.add-product-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+
+/* ── Photo viewer overlay ─── */
+.photo-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.90);
+  align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.photo-overlay.open { display: flex; }
+.photo-overlay img { max-width: 92vw; max-height: 86vh; border-radius: 10px; object-fit: contain; }
+.overlay-close {
+  position: fixed; top: 18px; right: 18px;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,0.12); border: none; color: #fff;
+  font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 480px) {
+  .card { padding: 14px; }
+  .hm-cell { width: 26px; height: 26px; font-size: 10px; }
+  .photo-grid { gap: 8px; }
+  .streak-val { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Photo viewer overlay -->
+<div class="photo-overlay" id="photoOverlay">
+  <img id="overlayImg" src="" alt="Progress photo">
+  <button class="overlay-close" id="overlayClose">×</button>
+</div>
+
+<main>
+
+  <!-- Date navigator -->
+  <div class="date-nav">
+    <button class="nav-btn" id="prevDay" aria-label="Previous day">‹</button>
+    <div class="date-nav-label" id="dateLabel">—</div>
+    <button class="nav-btn" id="nextDay" aria-label="Next day">›</button>
+  </div>
+
+  <!-- Daily Tracker -->
+  <div class="card routine-card" id="routineCard">
+
+    <!-- Morning -->
+    <div class="routine-header">
+      <div class="routine-title">☀️ Morning Routine</div>
+      <span class="routine-progress" id="morningProgress">0/7</span>
+    </div>
+    <div class="check-list" id="morningList"></div>
+
+    <div style="height:1px;background:var(--border-strong);margin:16px 0"></div>
+
+    <!-- Evening -->
+    <div class="routine-header">
+      <div class="routine-title">🌙 Evening Routine</div>
+      <span class="routine-progress" id="eveningProgress">0/5</span>
+    </div>
+    <div class="check-list" id="eveningList"></div>
+
+  </div>
+
+  <!-- Streak & Consistency -->
+  <div class="card">
+    <div class="sect-title">Streak &amp; Consistency</div>
+
+    <div class="streak-grid">
+      <div class="streak-panel">
+        <div class="streak-lbl">Current Streak</div>
+        <div class="streak-val active" id="currentStreakVal">0<span class="streak-unit">d</span></div>
+      </div>
+      <div class="streak-panel">
+        <div class="streak-lbl">Best Streak</div>
+        <div class="streak-val" id="longestStreakVal">0<span class="streak-unit">d</span></div>
+      </div>
+    </div>
+
+    <div class="cal-nav-row">
+      <button class="cal-btn" id="calPrev">‹</button>
+      <span class="cal-month-lbl" id="calMonthLbl">—</span>
+      <button class="cal-btn" id="calNext">›</button>
+    </div>
+    <div class="cal-dow">
+      <span>Su</span><span>Mo</span><span>Tu</span>
+      <span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+    </div>
+    <div class="heatmap-grid" id="heatmapGrid"></div>
+    <div class="cal-legend">
+      <div class="leg-item"><div class="leg-dot good"></div><span>Full routine</span></div>
+      <div class="leg-item"><div class="leg-dot warn"></div><span>Partial</span></div>
+      <div class="leg-item"><div class="leg-dot logged"></div><span>No log</span></div>
+    </div>
+  </div>
+
+  <!-- Progress Photos -->
+  <div class="card">
+    <div class="sect-title">Skin Progress Photos</div>
+    <label class="photo-upload-btn" for="photoInput">
+      <span style="font-size:18px">📷</span> Add Progress Photo
+    </label>
+    <input type="file" class="photo-upload-input" id="photoInput"
+      accept="image/*" capture="user">
+    <div class="photo-grid" id="photoGrid"></div>
+  </div>
+
+  <!-- Products -->
+  <div class="card">
+    <div class="sect-title">My Products</div>
+    <div id="productList"></div>
+    <button class="add-product-btn" id="addProductBtn">+ Add Product</button>
+  </div>
+
+</main>
+<script>
+(function () {
+  'use strict';
+
+  const KEY = 'hygiene_v1';
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const DAYS_S = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const MORNING_ITEMS = ['Wash face','Moisturizer with SPF','Lip balm','Deodorant','Brush teeth','Floss','Mouthwash'];
+  const EVENING_BASE  = ['Wash face','Moisturizer','Lip balm','Brush teeth','Floss'];
+
+  const CATEGORIES = [
+    { val: 'cleanser',    label: 'Cleanser' },
+    { val: 'moisturizer', label: 'Moisturizer' },
+    { val: 'spf',         label: 'SPF / Sunscreen' },
+    { val: 'exfoliator',  label: 'Exfoliator' },
+    { val: 'lip',         label: 'Lip Balm' },
+    { val: 'hair',        label: 'Hair Care' },
+    { val: 'other',       label: 'Other' },
+  ];
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function getEveningItems(date) {
+    const items = [...EVENING_BASE];
+    const dow = date.getDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+    if (dow === 1 || dow === 4) items.push('Shampoo & Conditioner');
+    if (dow === 1 || dow === 3 || dow === 6) items.push('Exfoliate');
+    return items;
+  }
+  function todayD() {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+  function dkey(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
+  }
+  function parseDate(k) {
+    const [y,m,d] = k.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+  function fmtLong(d) { return DAYS_S[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate(); }
+  function uid() { return 'h' + Date.now() + '_' + Math.floor(Math.random()*99999); }
+
+  // ── Storage ──────────────────────────────────────────────────────────────
+  function load() {
+    try {
+      const r = localStorage.getItem(KEY);
+      if (r) { const d = JSON.parse(r); if (d && typeof d === 'object') return d; }
+    } catch (e) {}
+    return { logs:{}, photos:[], products:[], longestStreak:0 };
+  }
+  function persist(d) {
+    try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  // ── Day completion status ────────────────────────────────────────────────
+  function dayStatus(dateKey) {
+    const d = load();
+    const log  = (d.logs || {})[dateKey] || {};
+    const date = parseDate(dateKey);
+    const mItems = MORNING_ITEMS;
+    const eItems = getEveningItems(date);
+    const total  = mItems.length + eItems.length;
+    let checked  = 0;
+    mItems.forEach(i => { if ((log.morning || {})[i]) checked++; });
+    eItems.forEach(i => { if ((log.evening || {})[i]) checked++; });
+    if (checked === total) return 'complete';
+    if (checked > 0) return 'partial';
+    return 'none';
+  }
+
+  // ── Streak calculation ───────────────────────────────────────────────────
+  function calcStreak() {
+    const data  = load();
+    const today = todayD();
+    let streak  = 0;
+    // Start from today if complete, else from yesterday
+    let checkD  = dayStatus(dkey(today)) === 'complete' ? today : addDays(today, -1);
+    while (streak < 1000) {
+      if (dayStatus(dkey(checkD)) === 'complete') { streak++; checkD = addDays(checkD, -1); }
+      else break;
+    }
+    const longest = Math.max(data.longestStreak || 0, streak);
+    if (longest !== (data.longestStreak || 0)) {
+      data.longestStreak = longest; persist(data);
+    }
+    return { current: streak, longest };
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let curDate = todayD();
+  let calYear = curDate.getFullYear();
+  let calMon  = curDate.getMonth();
+  let productSaveTimer = null;
+  let photoNoteTimers  = {};
+  const flashTimers    = {};
+
+  // ── Render checklist ─────────────────────────────────────────────────────
+  function renderRoutine() {
+    const d   = load();
+    const k   = dkey(curDate);
+    const log = (d.logs[k] || {});
+    const todayStr = dkey(todayD());
+
+    document.getElementById('dateLabel').textContent = fmtLong(curDate);
+    document.getElementById('nextDay').disabled = (k >= todayStr);
+
+    // Morning
+    const mItems = MORNING_ITEMS;
+    const mDone  = mItems.filter(i => (log.morning || {})[i]).length;
+    const mEl    = document.getElementById('morningProgress');
+    mEl.textContent = mDone + '/' + mItems.length;
+    mEl.className   = 'routine-progress' + (mDone === mItems.length ? ' done' : '');
+    document.getElementById('morningList').innerHTML = mItems.map(item => {
+      const checked = !!(log.morning || {})[item];
+      return `<div class="check-item${checked ? ' checked' : ''}"
+                   data-section="morning" data-item="${escH(item)}">
+        <div class="check-circle"><span class="check-circle-tick">✓</span></div>
+        <span class="check-label">${escH(item)}</span>
+      </div>`;
+    }).join('');
+
+    // Evening
+    const eItems = getEveningItems(curDate);
+    const eDone  = eItems.filter(i => (log.evening || {})[i]).length;
+    const eEl    = document.getElementById('eveningProgress');
+    eEl.textContent = eDone + '/' + eItems.length;
+    eEl.className   = 'routine-progress' + (eDone === eItems.length ? ' done' : '');
+    document.getElementById('eveningList').innerHTML = eItems.map(item => {
+      const checked = !!(log.evening || {})[item];
+      return `<div class="check-item${checked ? ' checked' : ''}"
+                   data-section="evening" data-item="${escH(item)}">
+        <div class="check-circle"><span class="check-circle-tick">✓</span></div>
+        <span class="check-label">${escH(item)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function escH(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function toggleItem(section, item) {
+    const d   = load();
+    const k   = dkey(curDate);
+    d.logs[k] = d.logs[k] || {};
+    d.logs[k][section] = d.logs[k][section] || {};
+    d.logs[k][section][item] = !d.logs[k][section][item];
+    if (!d.logs[k][section][item]) delete d.logs[k][section][item];
+    persist(d);
+    renderRoutine();
+    renderStreak();
+    renderHeatmap();
+  }
+
+  // ── Streak display ───────────────────────────────────────────────────────
+  function renderStreak() {
+    const { current, longest } = calcStreak();
+    const cur = document.getElementById('currentStreakVal');
+    cur.innerHTML = current + '<span class="streak-unit">d</span>';
+    cur.className = 'streak-val' + (current > 0 ? ' active' : '');
+    document.getElementById('longestStreakVal').innerHTML =
+      longest + '<span class="streak-unit">d</span>';
+  }
+
+  // ── Heatmap ──────────────────────────────────────────────────────────────
+  function renderHeatmap() {
+    const todayStr = dkey(todayD());
+    const curK     = dkey(curDate);
+    const nowDate  = todayD();
+    const atCur    = (calYear === nowDate.getFullYear() && calMon === nowDate.getMonth());
+
+    document.getElementById('calMonthLbl').textContent = MONTHS[calMon] + ' ' + calYear;
+    const nextBtn = document.getElementById('calNext');
+    nextBtn.style.opacity      = atCur ? '0.3' : '';
+    nextBtn.style.pointerEvents = atCur ? 'none' : '';
+
+    const firstDow   = new Date(calYear, calMon, 1).getDay();
+    const daysInMonth = new Date(calYear, calMon+1, 0).getDate();
+
+    let html = '';
+    for (let i = 0; i < firstDow; i++) {
+      html += '<div class="hm-cell-wrap"><div class="hm-cell empty"></div></div>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const k   = calYear + '-' + String(calMon+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+      const isPast   = k < todayStr;
+      const isToday  = k === todayStr;
+      const isFuture = k > todayStr;
+      let cls = '';
+      if (!isFuture) {
+        const s = dayStatus(k);
+        if (s === 'complete') cls = ' hm-complete';
+        else if (s === 'partial') cls = ' hm-partial';
+        else if (isPast) cls = ' hm-none';
+      }
+      if (isToday) cls += ' today-ring';
+      if (k === curK) cls += ' selected';
+      html += `<div class="hm-cell-wrap"><div class="hm-cell${cls}" data-k="${k}">${day}</div></div>`;
+    }
+    const grid = document.getElementById('heatmapGrid');
+    grid.innerHTML = html;
+    grid.querySelectorAll('.hm-cell:not(.empty)').forEach(el => {
+      el.addEventListener('click', () => {
+        const k = el.dataset.k;
+        if (!k || k > dkey(todayD())) return;
+        const [y,m,d] = k.split('-').map(Number);
+        curDate = new Date(y, m-1, d);
+        renderRoutine(); renderHeatmap();
+      });
+    });
+  }
+
+  // ── Progress photos ──────────────────────────────────────────────────────
+  function compressPhoto(dataUrl) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 600;
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else        { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { resolve(c.toDataURL('image/jpeg', 0.65)); } catch { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  async function addPhoto(file) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const compressed = await compressPhoto(e.target.result);
+      const d = load();
+      d.photos = d.photos || [];
+      if (d.photos.length >= 30) {
+        alert('Maximum 30 skin photos. Remove some older ones first.');
+        return;
+      }
+      d.photos.unshift({ id: uid(), dataUrl: compressed, dateKey: dkey(todayD()), notes: '' });
+      persist(d);
+      renderPhotos();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderPhotos() {
+    const d     = load();
+    const photos = d.photos || [];
+    const grid   = document.getElementById('photoGrid');
+    if (photos.length === 0) {
+      grid.innerHTML = '<div class="photo-empty">No photos yet — tap Add Progress Photo to start</div>';
+      return;
+    }
+    grid.innerHTML = photos.map(p => {
+      const src  = p.url || p.dataUrl || '';
+      const date = (() => {
+        try { const dt = parseDate(p.dateKey); return MONTHS[dt.getMonth()].slice(0,3) + ' ' + dt.getDate() + ', ' + dt.getFullYear(); } catch { return p.dateKey || ''; }
+      })();
+      return `<div class="photo-card" data-id="${p.id}">
+        <img src="${src}" alt="Skin photo" loading="lazy" data-view="${p.id}">
+        <button class="photo-remove-btn" data-remove="${p.id}" aria-label="Remove photo">×</button>
+        <div class="photo-card-meta">
+          <div class="photo-date">${date}</div>
+          <textarea class="photo-notes-input" rows="2"
+            placeholder="Notes…" data-note="${p.id}">${escH(p.notes || '')}</textarea>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function wirePhotoGrid() {
+    const grid = document.getElementById('photoGrid');
+    grid.addEventListener('click', e => {
+      const img = e.target.closest('[data-view]');
+      if (img) {
+        document.getElementById('overlayImg').src = img.src;
+        document.getElementById('photoOverlay').classList.add('open');
+        return;
+      }
+      const btn = e.target.closest('[data-remove]');
+      if (btn) {
+        const id = btn.dataset.remove;
+        const d  = load();
+        d.photos = (d.photos || []).filter(p => p.id !== id);
+        persist(d); renderPhotos();
+      }
+    });
+    grid.addEventListener('input', e => {
+      const ta = e.target.closest('[data-note]');
+      if (!ta) return;
+      const id = ta.dataset.note;
+      clearTimeout(photoNoteTimers[id]);
+      photoNoteTimers[id] = setTimeout(() => {
+        const d = load();
+        const photo = (d.photos || []).find(p => p.id === id);
+        if (photo) { photo.notes = ta.value.trim(); persist(d); }
+      }, 500);
+    });
+  }
+
+  // ── Products ─────────────────────────────────────────────────────────────
+  function renderProducts() {
+    const d = load();
+    const products = d.products || [];
+    const list = document.getElementById('productList');
+    if (products.length === 0) {
+      list.innerHTML = '<p style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px">No products yet. Add the products you\'re currently using.</p>';
+      return;
+    }
+    list.innerHTML = products.map(p => {
+      const catOpts = CATEGORIES.map(c =>
+        `<option value="${c.val}"${p.category === c.val ? ' selected' : ''}>${c.label}</option>`
+      ).join('');
+      return `<div class="product-card" data-pid="${p.id}">
+        <div class="product-header-row">
+          <input class="product-name-inp" type="text" placeholder="Product name"
+            value="${escH(p.name || '')}" data-pf="name" autocomplete="off" spellcheck="false">
+          <button class="product-remove-btn" data-premove="${p.id}" aria-label="Remove">×</button>
+        </div>
+        <div class="product-row">
+          <select class="product-select" data-pf="category">${catOpts}</select>
+          <input class="product-input" type="text" placeholder="Using since (e.g. Jan 2025)"
+            value="${escH(p.since || '')}" data-pf="since" style="flex:1.2" autocomplete="off">
+        </div>
+        <div class="product-row">
+          <textarea class="product-notes" rows="2" placeholder="Notes — how's it working for you?"
+            data-pf="notes">${escH(p.notes || '')}</textarea>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function scheduleProductSave() {
+    clearTimeout(productSaveTimer);
+    productSaveTimer = setTimeout(saveProducts, 500);
+  }
+  function saveProducts() {
+    const d = load();
+    d.products = d.products || [];
+    document.querySelectorAll('.product-card[data-pid]').forEach(card => {
+      const pid = card.dataset.pid;
+      const p   = d.products.find(x => x.id === pid);
+      if (!p) return;
+      card.querySelectorAll('[data-pf]').forEach(el => {
+        p[el.dataset.pf] = el.value;
+      });
+    });
+    persist(d);
+  }
+
+  function wireProductList() {
+    const list = document.getElementById('productList');
+    list.addEventListener('input', e => {
+      if (e.target.matches('[data-pf]')) scheduleProductSave();
+    });
+    list.addEventListener('click', e => {
+      const btn = e.target.closest('[data-premove]');
+      if (!btn) return;
+      const id = btn.dataset.premove;
+      const d  = load();
+      d.products = (d.products || []).filter(p => p.id !== id);
+      persist(d); renderProducts();
+    });
+    document.getElementById('addProductBtn').addEventListener('click', () => {
+      const d = load();
+      d.products = d.products || [];
+      d.products.push({ id: uid(), name:'', category:'cleanser', since:'', notes:'' });
+      persist(d); renderProducts();
+      const cards = document.querySelectorAll('.product-card');
+      if (cards.length) cards[cards.length-1].querySelector('.product-name-inp')?.focus();
+    });
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  function fullRender() {
+    renderRoutine();
+    renderStreak();
+    renderHeatmap();
+    renderPhotos();
+    renderProducts();
+  }
+
+  function init() {
+    fullRender();
+
+    // Date nav
+    document.getElementById('prevDay').addEventListener('click', () => {
+      curDate = addDays(curDate, -1);
+      renderRoutine(); renderHeatmap();
+    });
+    document.getElementById('nextDay').addEventListener('click', () => {
+      if (dkey(curDate) < dkey(todayD())) {
+        curDate = addDays(curDate, 1);
+        renderRoutine(); renderHeatmap();
+      }
+    });
+
+    // Checklist toggle (delegated)
+    ['morningList','eveningList'].forEach(listId => {
+      document.getElementById(listId).addEventListener('click', e => {
+        const row = e.target.closest('.check-item');
+        if (!row) return;
+        toggleItem(row.dataset.section, row.dataset.item);
+      });
+    });
+
+    // Calendar nav
+    document.getElementById('calPrev').addEventListener('click', () => {
+      calMon--; if (calMon < 0) { calMon = 11; calYear--; } renderHeatmap();
+    });
+    document.getElementById('calNext').addEventListener('click', () => {
+      const n = todayD();
+      if (calYear < n.getFullYear() || (calYear === n.getFullYear() && calMon < n.getMonth())) {
+        calMon++; if (calMon > 11) { calMon = 0; calYear++; } renderHeatmap();
+      }
+    });
+
+    // Photos
+    document.getElementById('photoInput').addEventListener('change', e => {
+      if (e.target.files[0]) { addPhoto(e.target.files[0]); e.target.value = ''; }
+    });
+    wirePhotoGrid();
+
+    // Products
+    wireProductList();
+
+    // Photo overlay
+    document.getElementById('overlayClose').addEventListener('click', () => {
+      document.getElementById('photoOverlay').classList.remove('open');
+    });
+    document.getElementById('photoOverlay').addEventListener('click', e => {
+      if (e.target === e.currentTarget) document.getElementById('photoOverlay').classList.remove('open');
+    });
+
+    // Sync
+    window.addEventListener('storage', () => {
+      const ae = document.activeElement;
+      if (ae && ae.matches('.product-name-inp,.product-input,.product-select,.product-notes,.photo-notes-input')) return;
+      fullRender();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof initCloudSync !== 'function') return;
+  initCloudSync({
+    appKey: 'hygiene',
+    syncedKeys: ['hygiene_v1'],
+    onApplied: function () { window.dispatchEvent(new Event('storage')); }
+  });
+});
+</script>
+</body>
+</html>
