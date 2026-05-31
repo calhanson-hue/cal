@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Nutrition</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sync.js" defer></script>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-input: rgba(0,0,0,0.30);
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.14);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --good: #6ee7b7;
+  --warn: #fbbf24;
+  --bad: #ff8a8a;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  min-height: 100%;
+}
+body { overflow-x: hidden; }
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 70% 10%, rgba(110,231,183,0.07) 0%, transparent 60%),
+    radial-gradient(50% 40% at 20% 85%, rgba(180,180,200,0.05) 0%, transparent 60%);
+  filter: blur(32px);
+}
+
+main {
+  max-width: 680px; margin: 0 auto;
+  padding: 14px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left));
+}
+
+/* ── Section title ─────────────────────────────────── */
+.sect-title {
+  font-family: var(--font-mono);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sect-title::before { content: '≡'; opacity: 0.5; font-size: 13px; }
+
+/* ── Card ──────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Date navigator ────────────────────────────────── */
+.date-nav {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.date-nav-label {
+  flex: 1; text-align: center;
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+}
+.nav-btn {
+  flex-shrink: 0; width: 34px; height: 34px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.09); color: var(--text-primary); }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Macro rows ────────────────────────────────────── */
+.macro-rows { display: flex; flex-direction: column; gap: 14px; }
+.macro-row { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; align-items: center; }
+.macro-hdr { display: flex; align-items: baseline; gap: 6px; }
+.macro-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.macro-goal-lbl { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.macro-input {
+  width: 90px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 15px; font-weight: 700;
+  text-align: right; padding: 7px 10px;
+  -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+.macro-input:focus { outline: none; border-color: rgba(255,255,255,0.22); }
+.macro-bar-track {
+  grid-column: 1 / -1;
+  height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+.macro-bar-fill { height: 100%; border-radius: 2px; transition: width 0.35s ease, background-color 0.35s ease; }
+
+/* ── Notes ─────────────────────────────────────────── */
+.notes-wrap { margin-top: 18px; }
+.notes-lbl {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 7px;
+}
+.notes-ta {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-family: var(--font); font-size: 14px; line-height: 1.55;
+  padding: 10px 12px; resize: none;
+  transition: border-color 0.15s;
+}
+.notes-ta::placeholder { color: var(--text-tertiary); }
+.notes-ta:focus { outline: none; border-color: rgba(255,255,255,0.18); }
+
+/* ── Save flash ─────────────────────────────────────── */
+.saved-flash {
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--good); letter-spacing: 0.05em;
+  margin-top: 8px; height: 14px;
+  opacity: 0; transition: opacity 0.25s;
+}
+.saved-flash.show { opacity: 1; }
+
+/* ── Weekly table ───────────────────────────────────── */
+.week-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.week-tbl th {
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+  padding: 0 4px 10px; text-align: right;
+}
+.week-tbl th:first-child { text-align: left; }
+.week-tbl td {
+  padding: 7px 4px; text-align: right;
+  color: var(--text-secondary); border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.week-tbl td:first-child { text-align: left; color: var(--text-primary); font-weight: 600; }
+.week-tbl .avg-row td { color: var(--text-primary); font-weight: 700; border-top: 1px solid var(--border-strong); }
+.kc-good { color: var(--good); }
+.kc-warn { color: var(--warn); }
+.kc-bad  { color: var(--bad); }
+.kc-none { color: var(--text-tertiary); }
+
+/* ── Calendar ───────────────────────────────────────── */
+.cal-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; gap: 8px;
+}
+.cal-month { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.cal-nav { display: flex; align-items: center; gap: 2px; }
+.cal-nav-btn {
+  background: transparent; border: none;
+  color: var(--text-tertiary); font-size: 17px; font-weight: 700;
+  cursor: pointer; padding: 2px 8px; border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, background 0.15s;
+}
+.cal-nav-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.07); }
+.cal-dow {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.09em;
+  color: var(--text-tertiary); margin-bottom: 4px;
+}
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-day-wrap { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.cal-day {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: var(--text-tertiary);
+  cursor: pointer;
+  transition: transform 0.10s;
+  -webkit-tap-highlight-color: transparent;
+}
+.cal-day.empty { opacity: 0; pointer-events: none; }
+.cal-day:not(.empty):hover { transform: scale(1.13); }
+.cal-day.today-ring { border: 1.5px solid rgba(255,255,255,0.24); color: var(--text-primary); }
+.cal-day.selected { box-shadow: 0 0 0 2px rgba(255,255,255,0.28); }
+.cal-day.day-good { background: rgba(110,231,183,0.20); color: var(--good); }
+.cal-day.day-warn { background: rgba(251,191,36,0.20);  color: var(--warn); }
+.cal-day.day-bad  { background: rgba(255,138,138,0.20); color: var(--bad); }
+.cal-day.day-logged { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+.cal-legend {
+  display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px;
+  font-size: 11px; color: var(--text-tertiary);
+}
+.leg-item { display: flex; align-items: center; gap: 5px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.leg-dot.good { background: var(--good); opacity: 0.75; }
+.leg-dot.warn { background: var(--warn); opacity: 0.75; }
+.leg-dot.bad  { background: var(--bad);  opacity: 0.75; }
+.leg-dot.logged { background: rgba(255,255,255,0.14); }
+
+/* ── Goals ──────────────────────────────────────────── */
+.goal-rows { display: flex; flex-direction: column; gap: 12px; }
+.goal-row { display: flex; align-items: center; gap: 12px; }
+.goal-row label { flex: 1; font-size: 14px; color: var(--text-secondary); }
+.goal-inp {
+  width: 96px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+  text-align: right; padding: 8px 10px;
+  -webkit-appearance: none;
+  transition: border-color 0.15s;
+}
+.goal-inp:focus { outline: none; border-color: rgba(255,255,255,0.22); }
+.save-goals-btn {
+  width: 100%; margin-top: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-primary); font-family: var(--font);
+  font-size: 14px; font-weight: 600; padding: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.save-goals-btn:hover { background: rgba(255,255,255,0.10); }
+
+@media (max-width: 480px) {
+  .card { padding: 14px; }
+  .macro-input { width: 80px; font-size: 14px; }
+  .goal-inp { width: 84px; }
+  .cal-day { width: 28px; height: 28px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<main>
+
+  <!-- Date navigator -->
+  <div class="date-nav">
+    <button class="nav-btn" id="prevDay" aria-label="Previous day">‹</button>
+    <div class="date-nav-label" id="dateLabel">—</div>
+    <button class="nav-btn" id="nextDay" aria-label="Next day">›</button>
+  </div>
+
+  <!-- Daily Log -->
+  <div class="card">
+    <div class="sect-title">Daily Log</div>
+    <div class="macro-rows" id="macroRows"></div>
+    <div class="notes-wrap">
+      <div class="notes-lbl">Notes / Slip-ups</div>
+      <textarea class="notes-ta" id="notesInput" rows="3"
+        placeholder="What did you eat today? Any off-track moments…"></textarea>
+    </div>
+    <div class="saved-flash" id="logSaved">Saved ✓</div>
+  </div>
+
+  <!-- Weekly Average -->
+  <div class="card">
+    <div class="sect-title">Weekly Average</div>
+    <table class="week-tbl" id="weekTbl"></table>
+  </div>
+
+  <!-- Monthly Calendar -->
+  <div class="card">
+    <div class="cal-top">
+      <div class="sect-title" style="margin:0">Monthly Overview</div>
+      <div class="cal-nav">
+        <button class="cal-nav-btn" id="calPrev">‹</button>
+        <span class="cal-month" id="calMonth">—</span>
+        <button class="cal-nav-btn" id="calNext">›</button>
+      </div>
+    </div>
+    <div class="cal-dow">
+      <span>Su</span><span>Mo</span><span>Tu</span><span>We</span>
+      <span>Th</span><span>Fr</span><span>Sa</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-legend">
+      <div class="leg-item"><div class="leg-dot good"></div><span>Within 100 cal of goal</span></div>
+      <div class="leg-item"><div class="leg-dot warn"></div><span>100–300 cal off</span></div>
+      <div class="leg-item"><div class="leg-dot bad"></div><span>&gt;300 cal off</span></div>
+      <div class="leg-item"><div class="leg-dot logged"></div><span>Logged, no goal set</span></div>
+    </div>
+  </div>
+
+  <!-- Daily Goals -->
+  <div class="card">
+    <div class="sect-title">Daily Goals</div>
+    <div class="goal-rows">
+      <div class="goal-row">
+        <label>Calories (kcal)</label>
+        <input class="goal-inp" type="number" id="gCal"  placeholder="2000" min="0" inputmode="numeric">
+      </div>
+      <div class="goal-row">
+        <label>Protein (g)</label>
+        <input class="goal-inp" type="number" id="gProt" placeholder="150"  min="0" inputmode="numeric">
+      </div>
+      <div class="goal-row">
+        <label>Carbs (g)</label>
+        <input class="goal-inp" type="number" id="gCarb" placeholder="200"  min="0" inputmode="numeric">
+      </div>
+      <div class="goal-row">
+        <label>Fats (g)</label>
+        <input class="goal-inp" type="number" id="gFat"  placeholder="65"   min="0" inputmode="numeric">
+      </div>
+    </div>
+    <button class="save-goals-btn" id="saveGoalsBtn">Save Goals</button>
+    <div class="saved-flash" id="goalsSaved" style="text-align:center">Goals saved ✓</div>
+  </div>
+
+</main>
+<script>
+(function () {
+  'use strict';
+
+  const KEY = 'nutrition_v1';
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const DAYS_S  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // ── Storage ──────────────────────────────────────────────────────────────
+  function load() {
+    try {
+      const r = localStorage.getItem(KEY);
+      if (r) { const d = JSON.parse(r); if (d && typeof d === 'object') return d; }
+    } catch (e) {}
+    return { goals: { calories: 2000, protein: 150, carbs: 200, fats: 65 }, logs: {} };
+  }
+  function save(d) {
+    try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  // ── Date helpers ─────────────────────────────────────────────────────────
+  function todayD() {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+  function dkey(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+  function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+  function fmtLong(d) {
+    return DAYS_S[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+  }
+  function fmtShort(d) { return DAYS_S[d.getDay()] + ' ' + d.getDate(); }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let curDate  = todayD();
+  let calYear  = curDate.getFullYear();
+  let calMon   = curDate.getMonth();
+  let saveTimer = null;
+  const flashTimers = {};
+
+  // ── Colour helpers ───────────────────────────────────────────────────────
+  const MACROS = [
+    { id: 'cal',  field: 'calories', label: 'Calories', unit: 'kcal' },
+    { id: 'prot', field: 'protein',  label: 'Protein',  unit: 'g' },
+    { id: 'carb', field: 'carbs',    label: 'Carbs',    unit: 'g' },
+    { id: 'fat',  field: 'fats',     label: 'Fats',     unit: 'g' },
+  ];
+
+  function barPct(val, goal) {
+    if (!goal || val == null || val === '') return 0;
+    return Math.min(val / goal * 100, 100);
+  }
+  function barColor(val, goal) {
+    if (!goal || !val) return 'rgba(255,255,255,0.10)';
+    const r = val / goal;
+    if (r > 1.15) return 'var(--bad)';
+    if (r > 1.0)  return 'var(--warn)';
+    return 'var(--good)';
+  }
+  function calStatus(cal, goalCal) {
+    if (cal == null) return null;
+    if (!goalCal)    return 'logged';
+    const diff = Math.abs(cal - goalCal);
+    if (diff <= 100) return 'good';
+    if (diff <= 300) return 'warn';
+    return 'bad';
+  }
+  function kcalCls(cal, goalCal) {
+    const s = calStatus(cal, goalCal);
+    if (!s) return '';
+    if (s === 'logged') return 'kc-none';
+    return 'kc-' + s;
+  }
+
+  // ── Flash ────────────────────────────────────────────────────────────────
+  function flash(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('show');
+    clearTimeout(flashTimers[id]);
+    flashTimers[id] = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  // ── Render log form ──────────────────────────────────────────────────────
+  function renderLog() {
+    const data = load();
+    const k    = dkey(curDate);
+    const log  = data.logs[k] || {};
+    const g    = data.goals  || {};
+    const todayStr = dkey(todayD());
+
+    document.getElementById('dateLabel').textContent = fmtLong(curDate);
+    document.getElementById('nextDay').disabled = (k >= todayStr);
+
+    document.getElementById('macroRows').innerHTML = MACROS.map(m => {
+      const val  = log[m.field] != null ? log[m.field] : '';
+      const goal = g[m.field];
+      const pct  = barPct(val, goal);
+      const bc   = val !== '' ? barColor(Number(val), goal) : 'rgba(255,255,255,0.08)';
+      const gLbl = goal ? '/ ' + goal + ' ' + m.unit : '';
+      return `<div class="macro-row">
+        <div class="macro-hdr">
+          <span class="macro-name">${m.label}</span>
+          <span class="macro-goal-lbl">${gLbl}</span>
+        </div>
+        <input class="macro-input" id="inp_${m.id}" type="number" min="0" step="1"
+          placeholder="0" value="${val}" autocomplete="off" inputmode="decimal">
+        <div class="macro-bar-track">
+          <div class="macro-bar-fill" id="bar_${m.id}"
+            style="width:${pct}%;background:${bc}"></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('notesInput').value = log.notes || '';
+  }
+
+  // ── Auto-save ────────────────────────────────────────────────────────────
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(commitSave, 500);
+  }
+
+  function commitSave() {
+    const data = load();
+    const k    = dkey(curDate);
+    const log  = data.logs[k] || {};
+
+    MACROS.forEach(m => {
+      const el = document.getElementById('inp_' + m.id);
+      if (!el) return;
+      const v = el.value.trim();
+      if (v === '' || isNaN(Number(v))) delete log[m.field];
+      else log[m.field] = Math.round(Number(v));
+    });
+
+    const ta = document.getElementById('notesInput');
+    if (ta) { const v = ta.value.trim(); if (v) log.notes = v; else delete log.notes; }
+
+    if (Object.keys(log).length > 0) data.logs[k] = log; else delete data.logs[k];
+    save(data);
+    flash('logSaved');
+    updateBars();
+    renderWeekly();
+    renderCalendar();
+  }
+
+  function updateBars() {
+    const goals = (load().goals) || {};
+    MACROS.forEach(m => {
+      const inp = document.getElementById('inp_' + m.id);
+      const bar = document.getElementById('bar_' + m.id);
+      if (!inp || !bar) return;
+      const v = inp.value.trim();
+      const n = parseFloat(v) || 0;
+      bar.style.width           = v !== '' ? barPct(n, goals[m.field]) + '%' : '0%';
+      bar.style.backgroundColor = v !== '' ? barColor(n, goals[m.field]) : 'rgba(255,255,255,0.08)';
+    });
+  }
+
+  // ── Weekly summary ───────────────────────────────────────────────────────
+  function renderWeekly() {
+    const data  = load();
+    const g     = data.goals || {};
+    const today = todayD();
+    const tStr  = dkey(today);
+    const curK  = dkey(curDate);
+
+    const rows = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDays(today, -i);
+      rows.push({ d, k: dkey(d), log: data.logs[dkey(d)] || null });
+    }
+
+    let sum = { calories:0, protein:0, carbs:0, fats:0 };
+    let cnt = { calories:0, protein:0, carbs:0, fats:0 };
+    rows.forEach(({ log }) => {
+      if (!log) return;
+      ['calories','protein','carbs','fats'].forEach(f => {
+        if (log[f] != null) { sum[f] += log[f]; cnt[f]++; }
+      });
+    });
+
+    let html = `<thead><tr>
+      <th>Day</th><th>Kcal</th><th>Pro</th><th>Carb</th><th>Fat</th>
+    </tr></thead><tbody>`;
+
+    rows.forEach(({ d, k, log }) => {
+      const isT  = k === tStr;
+      const isCur = k === curK;
+      const cal  = log?.calories;
+      const bg   = isCur ? ' style="background:rgba(255,255,255,0.03)"' : '';
+      html += `<tr${bg}>
+        <td>${isT ? '→ Today' : fmtShort(d)}</td>
+        <td class="${kcalCls(cal, g.calories)}">${cal != null ? cal : '—'}</td>
+        <td>${log?.protein != null ? log.protein + 'g' : '—'}</td>
+        <td>${log?.carbs   != null ? log.carbs   + 'g' : '—'}</td>
+        <td>${log?.fats    != null ? log.fats    + 'g' : '—'}</td>
+      </tr>`;
+    });
+
+    if (cnt.calories > 0) {
+      const avg = {
+        calories: Math.round(sum.calories / cnt.calories),
+        protein:  cnt.protein > 0 ? Math.round(sum.protein / cnt.protein) : null,
+        carbs:    cnt.carbs   > 0 ? Math.round(sum.carbs   / cnt.carbs)   : null,
+        fats:     cnt.fats    > 0 ? Math.round(sum.fats    / cnt.fats)    : null,
+      };
+      html += `<tr class="avg-row">
+        <td>7d Avg</td>
+        <td class="${kcalCls(avg.calories, g.calories)}">${avg.calories}</td>
+        <td>${avg.protein != null ? avg.protein + 'g' : '—'}</td>
+        <td>${avg.carbs   != null ? avg.carbs   + 'g' : '—'}</td>
+        <td>${avg.fats    != null ? avg.fats    + 'g' : '—'}</td>
+      </tr>`;
+    } else {
+      html += `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:16px 0;font-size:13px">No logs this week yet</td></tr>`;
+    }
+
+    document.getElementById('weekTbl').innerHTML = html + '</tbody>';
+  }
+
+  // ── Monthly calendar ─────────────────────────────────────────────────────
+  function renderCalendar() {
+    const data    = load();
+    const g       = data.goals || {};
+    const tStr    = dkey(todayD());
+    const curK    = dkey(curDate);
+    const nowDate = todayD();
+
+    document.getElementById('calMonth').textContent = MONTHS[calMon] + ' ' + calYear;
+
+    const atCurrent = (calYear === nowDate.getFullYear() && calMon === nowDate.getMonth());
+    const nextBtn = document.getElementById('calNext');
+    nextBtn.style.opacity      = atCurrent ? '0.3' : '';
+    nextBtn.style.pointerEvents = atCurrent ? 'none' : '';
+
+    const firstDow   = new Date(calYear, calMon, 1).getDay();
+    const daysInMonth = new Date(calYear, calMon + 1, 0).getDate();
+
+    let html = '';
+    for (let i = 0; i < firstDow; i++) {
+      html += '<div class="cal-day-wrap"><div class="cal-day empty"></div></div>';
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const k   = calYear + '-' +
+        String(calMon + 1).padStart(2, '0') + '-' +
+        String(day).padStart(2, '0');
+      const log = data.logs[k];
+      const cal = log?.calories;
+      const status = calStatus(cal, g.calories);
+
+      let cls = '';
+      if      (status === 'good')   cls = ' day-good';
+      else if (status === 'warn')   cls = ' day-warn';
+      else if (status === 'bad')    cls = ' day-bad';
+      else if (status === 'logged') cls = ' day-logged';
+      if (k === tStr)  cls += ' today-ring';
+      if (k === curK)  cls += ' selected';
+
+      html += `<div class="cal-day-wrap">
+        <div class="cal-day${cls}" data-k="${k}">${day}</div>
+      </div>`;
+    }
+
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = html;
+
+    grid.querySelectorAll('.cal-day:not(.empty)').forEach(el => {
+      el.addEventListener('click', () => {
+        const k = el.dataset.k;
+        if (!k) return;
+        const [y, m, d] = k.split('-').map(Number);
+        curDate = new Date(y, m - 1, d);
+        renderLog();
+        renderWeekly();
+        renderCalendar();
+      });
+    });
+  }
+
+  // ── Goals ────────────────────────────────────────────────────────────────
+  function renderGoals() {
+    const g = load().goals || {};
+    const set = (id, v) => { if (v != null) document.getElementById(id).value = v; };
+    set('gCal', g.calories); set('gProt', g.protein);
+    set('gCarb', g.carbs);   set('gFat',  g.fats);
+  }
+
+  function saveGoals() {
+    const data = load();
+    const p = id => { const v = parseInt(document.getElementById(id).value, 10); return isNaN(v) ? null : v; };
+    data.goals = {
+      calories: p('gCal')  ?? 2000,
+      protein:  p('gProt') ?? 150,
+      carbs:    p('gCarb') ?? 200,
+      fats:     p('gFat')  ?? 65,
+    };
+    save(data);
+    flash('goalsSaved');
+    renderLog();
+    renderWeekly();
+    renderCalendar();
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  function init() {
+    renderLog();
+    renderWeekly();
+    renderCalendar();
+    renderGoals();
+
+    document.getElementById('prevDay').addEventListener('click', () => {
+      curDate = addDays(curDate, -1);
+      renderLog(); renderWeekly(); renderCalendar();
+    });
+    document.getElementById('nextDay').addEventListener('click', () => {
+      if (dkey(curDate) < dkey(todayD())) {
+        curDate = addDays(curDate, 1);
+        renderLog(); renderWeekly(); renderCalendar();
+      }
+    });
+
+    // Delegated inputs — attach once to the stable container
+    document.getElementById('macroRows').addEventListener('input', e => {
+      if (e.target.matches('.macro-input')) scheduleSave();
+    });
+    document.getElementById('notesInput').addEventListener('input', scheduleSave);
+
+    document.getElementById('calPrev').addEventListener('click', () => {
+      calMon--;
+      if (calMon < 0) { calMon = 11; calYear--; }
+      renderCalendar();
+    });
+    document.getElementById('calNext').addEventListener('click', () => {
+      const n = todayD();
+      if (calYear < n.getFullYear() ||
+          (calYear === n.getFullYear() && calMon < n.getMonth())) {
+        calMon++;
+        if (calMon > 11) { calMon = 0; calYear++; }
+        renderCalendar();
+      }
+    });
+
+    document.getElementById('saveGoalsBtn').addEventListener('click', saveGoals);
+
+    // Re-render on sync without clobbering active inputs
+    window.addEventListener('storage', () => {
+      const ae = document.activeElement;
+      if (ae && ae.matches('.macro-input, .notes-ta, .goal-inp')) return;
+      renderLog(); renderWeekly(); renderCalendar(); renderGoals();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof initCloudSync !== 'function') return;
+  initCloudSync({
+    appKey: 'nutrition',
+    syncedKeys: ['nutrition_v1'],
+    onApplied: function () { window.dispatchEvent(new Event('storage')); }
+  });
+});
+</script>
+</body>
+</html>
