@@ -34,7 +34,7 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
-  padding: max(28px, env(safe-area-inset-top)) 20px 60px;
+  padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(60px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
 body::before {
   content: '';
@@ -590,7 +590,7 @@ body::after {
 .gm-status.gm-status-error { color: var(--danger); }
 
 @media (max-width: 480px) {
-  body { padding: max(20px, env(safe-area-inset-top)) 14px 50px; }
+  body { padding: max(20px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(50px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
   .gm-card { padding: 16px; }
   .gm-progress-num { font-size: 36px; }
 }
@@ -636,7 +636,7 @@ body::after {
     <div class="day-ring-text">
       <div class="day-ring-status"    id="dayRingStatus">Loading…</div>
       <div class="day-ring-remaining" id="dayRingRemaining">—</div>
-      <div class="day-ring-hours">8:00 AM – 12:00 AM</div>
+      <div class="day-ring-hours">9:00 AM – 2:00 AM</div>
     </div>
   </div>
 
@@ -701,8 +701,8 @@ body::after {
   // Paste your Anthropic key here to enable ✨ Polish. Empty = falls back to plain add.
   const ANTHROPIC_API_KEY = '';
 
-  const WAKE_HOUR  = 8;
-  const SLEEP_HOUR = 24;
+  const WAKE_HOUR  = 9;
+  const SLEEP_HOUR = 26;
 
   // ---------- storage helpers ----------
   function storeGet(key) {
