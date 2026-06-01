@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0a0a0b">
 <title>Money</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
 <script src="sync.js" defer></script>
 <script src="topbar.js" defer></script>
 <style>
@@ -301,6 +302,32 @@ main {
   .summary-grid { gap: 8px; }
   .sum-panel { padding: 12px; }
 }
+
+/* ── Charts ──────────────────────────────────────── */
+.chart-row-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  margin: 0 0 8px;
+}
+.chart-wrap {
+  height: 180px; margin-bottom: 22px; position: relative;
+}
+.chart-wrap.chart-sm { height: 200px; margin-bottom: 0; }
+.chart-2col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px;
+}
+.chart-empty {
+  height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--text-tertiary); text-align: center;
+  padding: 0 16px; background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border); border-radius: 10px; line-height: 1.5;
+}
+@media (max-width: 480px) {
+  .chart-wrap { height: 160px; }
+  .chart-wrap.chart-sm { height: 180px; }
+  .chart-2col { grid-template-columns: 1fr; gap: 12px; }
+}
 </style>
 </head>
 <body>
@@ -329,6 +356,31 @@ main {
         <div class="sum-label">Monthly Burn</div>
         <div class="sum-value burn" id="sumBurn">$—</div>
         <div class="sum-sub" id="sumBurnSub"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts & Trends ──────────────────────────── -->
+  <div class="card">
+    <div class="sect-title">Charts &amp; Trends</div>
+
+    <div class="chart-row-title">Net Worth Over Time</div>
+    <div class="chart-wrap" id="wrapNetWorth"></div>
+
+    <div class="chart-row-title">Total Debt Trend</div>
+    <div class="chart-wrap" id="wrapDebt"></div>
+
+    <div class="chart-row-title">Cash vs Credit Card Debt</div>
+    <div class="chart-wrap" id="wrapCashCredit"></div>
+
+    <div class="chart-2col">
+      <div>
+        <div class="chart-row-title">Debt Breakdown</div>
+        <div class="chart-wrap chart-sm" id="wrapDonut"></div>
+      </div>
+      <div>
+        <div class="chart-row-title">Monthly Burn Split</div>
+        <div class="chart-wrap chart-sm" id="wrapBurn"></div>
       </div>
     </div>
   </div>
@@ -574,6 +626,28 @@ main {
   }
   function uid() { return 'e' + Date.now() + '_' + Math.floor(Math.random() * 9999); }
 
+  // ── Weekly snapshot — recorded on every Save press ────────────────────────
+  // Captures a full cross-section so trend charts have per-section history,
+  // not just the debt total that debtHistory already tracks.
+  function recordSnapshot(d) {
+    const today = new Date().toISOString().slice(0, 10);
+    const pa = d.personalAccounts || {}, ba = d.businessAccounts || {}, da = d.debtAccounts || {};
+    const pe = d.personalExpenses || [], be = d.businessExpenses || [];
+    const persCash   = PERS_CASH.reduce((s, k)   => s + (pa[k] || 0), 0);
+    const persCredit = PERS_CREDIT.reduce((s, k) => s + (pa[k] || 0), 0);
+    const bizCash    = BIZ_CASH.reduce((s, k)    => s + (ba[k] || 0), 0);
+    const bizCredit  = BIZ_CREDIT.reduce((s, k)  => s + (ba[k] || 0), 0);
+    const debt       = DEBT_KEYS.reduce((s, k)   => s + (da[k] || 0), 0);
+    let persExp = 0; pe.forEach(e => { if (e.amount) persExp += e.amount; });
+    let bizExp  = 0; be.forEach(e => { if (e.amount) bizExp  += e.amount; });
+    const snap = { date: today, persCash, persCredit, bizCash, bizCredit, debt, persExp, bizExp };
+    d.weeklySnapshot = d.weeklySnapshot || [];
+    const idx = d.weeklySnapshot.findIndex(s => s.date === today);
+    if (idx >= 0) d.weeklySnapshot[idx] = snap; else d.weeklySnapshot.push(snap);
+    if (d.weeklySnapshot.length > 52) d.weeklySnapshot.splice(0, d.weeklySnapshot.length - 52);
+    persist(d);
+  }
+
   // ── Flash helper ────────────────────────────────────────────────────────
   const flashTimers = {};
   function flash(id) {
@@ -687,6 +761,119 @@ main {
       </div>`;
   }
 
+  // ── Chart engine ─────────────────────────────────────────────────────────
+  const charts = {};
+  let chartDefaultsSet = false;
+
+  function renderChart(wrapId, key, config, emptyMsg) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    if (charts[key]) { try { charts[key].destroy(); } catch (e) {} delete charts[key]; }
+    if (!config) { wrap.innerHTML = '<div class="chart-empty">' + emptyMsg + '</div>'; return; }
+    wrap.innerHTML = '<canvas></canvas>';
+    try { charts[key] = new Chart(wrap.querySelector('canvas'), config); } catch (e) {}
+  }
+
+  function renderCharts() {
+    if (typeof Chart === 'undefined') return;
+    if (!chartDefaultsSet) {
+      Chart.defaults.color       = 'rgba(255,255,255,0.40)';
+      Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+      Chart.defaults.font.family = 'ui-monospace,"SF Mono",Menlo,Consolas,monospace';
+      Chart.defaults.font.size   = 10;
+      chartDefaultsSet = true;
+    }
+
+    const d     = load();
+    const snaps = (d.weeklySnapshot || []).slice(-20);
+    const pa    = d.personalAccounts || {};
+    const ba    = d.businessAccounts || {};
+    const da    = d.debtAccounts     || {};
+    const pe    = d.personalExpenses || [];
+    const be    = d.businessExpenses || [];
+    const has2  = snaps.length >= 2;
+    const MONS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    const labels = snaps.map(s => {
+      const dt = new Date(s.date + 'T00:00:00');
+      return MONS[dt.getMonth()] + ' ' + dt.getDate();
+    });
+
+    // Shared style tokens
+    const TT = { backgroundColor:'rgba(5,5,6,0.92)', titleColor:'rgba(255,255,255,0.5)', bodyColor:'#FAFAFA', borderColor:'rgba(255,255,255,0.10)', borderWidth:1, padding:10 };
+    const xAx = { grid:{ display:false }, ticks:{ maxTicksLimit:7, color:'rgba(255,255,255,0.35)', maxRotation:0 } };
+    const yAx = { grid:{ color:'rgba(255,255,255,0.04)' }, border:{ display:false }, ticks:{ color:'rgba(255,255,255,0.35)', callback: v => '$'+(Math.abs(v)>=1000?(v/1000).toFixed(0)+'k':v) } };
+    const lineCfg = (data, color, fill) => ({
+      data, borderColor:color, backgroundColor:fill, fill:true,
+      tension:0.35, pointRadius:3, pointHoverRadius:5, pointBackgroundColor:color,
+    });
+    const lineOpts = {
+      responsive:true, maintainAspectRatio:false, animation:{ duration:500 },
+      plugins:{ legend:{ display:false }, tooltip:{ ...TT, callbacks:{ label: ctx => ' $'+Math.round(ctx.parsed.y).toLocaleString() } } },
+      scales:{ x:xAx, y:yAx },
+    };
+
+    // 1 — Net Worth Trend
+    const nw = snaps.map(s => (s.persCash+s.bizCash)-(s.persCredit+s.bizCredit+s.debt));
+    renderChart('wrapNetWorth','netWorth', has2 ? {
+      type:'line', data:{ labels, datasets:[lineCfg(nw,'#6ee7b7','rgba(110,231,183,0.08)')] }, options:lineOpts,
+    } : null, 'Save balances weekly to track net worth over time');
+
+    // 2 — Total Debt Trend
+    const dt = snaps.map(s => s.persCredit+s.bizCredit+s.debt);
+    renderChart('wrapDebt','debt', has2 ? {
+      type:'line', data:{ labels, datasets:[lineCfg(dt,'#ff8a8a','rgba(255,138,138,0.07)')] }, options:lineOpts,
+    } : null, 'Save balances weekly to watch debt decrease over time');
+
+    // 3 — Cash vs Credit Bar
+    renderChart('wrapCashCredit','cashCredit', has2 ? {
+      type:'bar',
+      data:{ labels, datasets:[
+        { label:'Total Cash',  data:snaps.map(s=>s.persCash+s.bizCash),   backgroundColor:'rgba(110,231,183,0.55)', borderRadius:3 },
+        { label:'Credit Owed', data:snaps.map(s=>s.persCredit+s.bizCredit), backgroundColor:'rgba(255,138,138,0.55)', borderRadius:3 },
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false, animation:{ duration:500 },
+        plugins:{
+          legend:{ display:true, position:'bottom', labels:{ boxWidth:10, padding:10, color:'rgba(255,255,255,0.45)', font:{ size:10 } } },
+          tooltip:{ ...TT, callbacks:{ label: ctx => ' '+ctx.dataset.label+': $'+Math.round(ctx.parsed.y).toLocaleString() } },
+        },
+        scales:{ x:xAx, y:yAx },
+      },
+    } : null, 'Save balances weekly to compare cash vs debt over time');
+
+    // 4 — Debt Breakdown Donut
+    const dLabels = ['Capital One','Discover','Scheels','Chase Biz CC','Car Loan','Student Loans','Dental'];
+    const dData   = [pa.capital_one_cc||0, pa.discover_cc||0, pa.scheels_cc||0, ba.chase_biz_cc||0, da.car_loan||0, da.student_loans||0, da.dental||0];
+    const dColors = ['#ff8a8a','#fbbf24','#E07658','#f472b6','#60a5fa','#a78bfa','#34d399'];
+    renderChart('wrapDonut','donut', dData.some(v=>v>0) ? {
+      type:'doughnut',
+      data:{ labels:dLabels, datasets:[{ data:dData, backgroundColor:dColors, borderWidth:1, borderColor:'rgba(0,0,0,0.3)' }] },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'62%', animation:{ duration:500 },
+        plugins:{
+          legend:{ position:'bottom', labels:{ boxWidth:8, padding:6, color:'rgba(255,255,255,0.45)', font:{ size:9 } } },
+          tooltip:{ ...TT, callbacks:{ label: ctx => ' '+ctx.label+': $'+Math.round(ctx.parsed).toLocaleString() } },
+        },
+      },
+    } : null, 'Enter account balances to see your debt breakdown');
+
+    // 5 — Monthly Burn Split
+    let persExp=0; pe.forEach(e=>{ if(e.amount) persExp+=e.amount; });
+    let bizExp=0;  be.forEach(e=>{ if(e.amount) bizExp+=e.amount;  });
+    renderChart('wrapBurn','burn', (persExp>0||bizExp>0) ? {
+      type:'doughnut',
+      data:{ labels:['Personal','Business'], datasets:[{ data:[persExp,bizExp], backgroundColor:['rgba(251,191,36,0.75)','rgba(224,118,88,0.75)'], borderWidth:1, borderColor:'rgba(0,0,0,0.3)' }] },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'62%', animation:{ duration:500 },
+        plugins:{
+          legend:{ position:'bottom', labels:{ boxWidth:8, padding:8, color:'rgba(255,255,255,0.45)', font:{ size:10 } } },
+          tooltip:{ ...TT, callbacks:{ label: ctx => ' '+ctx.label+': $'+ctx.parsed.toFixed(2)+'/mo' } },
+        },
+      },
+    } : null, 'Add monthly expenses to see your burn rate split');
+  }
+
   // ── Expense list renderer ───────────────────────────────────────────────
   function renderExpenses(listId, items, burnId) {
     const list = document.getElementById(listId);
@@ -732,6 +919,7 @@ main {
     renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
     renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
     renderSummary();
+    renderCharts();
   }
   function readExpenseList(listId) {
     const list = document.getElementById(listId);
@@ -799,6 +987,7 @@ main {
       document.getElementById(updLblId).textContent = fmtUpdated(d[updKey]);
       flash(flashId);
       renderSummary();
+      recordSnapshot(load()); renderCharts();
     });
   }
 
@@ -824,6 +1013,7 @@ main {
       flash('debtFlash');
       renderSummary();
       renderSparkline();
+      recordSnapshot(d); renderCharts();
     });
   }
 
@@ -850,6 +1040,7 @@ main {
     renderExpenses('persExpList', d.personalExpenses || [], 'persBurnTotal');
     renderExpenses('bizExpList',  d.businessExpenses || [], 'bizBurnTotal');
     renderSummary();
+    renderCharts();
   }
 
   // ── Init ────────────────────────────────────────────────────────────────
