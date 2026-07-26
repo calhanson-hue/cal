@@ -328,6 +328,25 @@ main {
   .chart-wrap.chart-sm { height: 180px; }
   .chart-2col { grid-template-columns: 1fr; gap: 12px; }
 }
+
+/* ── Tab bar ─────────────────────────────────────── */
+.tab-bar {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.tab-pill {
+  flex: 1; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px; color: var(--text-secondary);
+  font-family: var(--font); font-size: 14px; font-weight: 600;
+  padding: 10px 0; cursor: pointer; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.tab-pill.active {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.25);
+  color: var(--text-primary);
+}
 </style>
 </head>
 <body>
@@ -385,182 +404,198 @@ main {
     </div>
   </div>
 
-  <!-- ── Personal Accounts ─────────────────────────── -->
-  <div class="card">
-    <div class="sect-title">Personal Accounts</div>
-
-    <div class="acct-group">
-      <div class="group-label">Bank Accounts</div>
-      <div class="acct-row">
-        <span class="acct-name">FSB Checking</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_fsb_checking" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-        </div>
-      </div>
-      <div class="acct-row">
-        <span class="acct-name">FSB Savings</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_fsb_savings" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-        </div>
-      </div>
-    </div>
-
-    <div class="sect-divider"></div>
-
-    <div class="acct-group">
-      <div class="group-label">Credit Cards</div>
-      <div class="acct-row">
-        <span class="acct-name">Capital One</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_capital_one_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-        </div>
-      </div>
-      <div class="acct-row">
-        <span class="acct-name">Discover</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_discover_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-        </div>
-      </div>
-      <div class="acct-row">
-        <span class="acct-name">Scheels</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_scheels_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-        </div>
-      </div>
-    </div>
-
-    <div class="subtotals">
-      <div class="subtotal-chip">
-        <div class="subtotal-lbl">Cash</div>
-        <div class="subtotal-val" id="st_pers_cash">$—</div>
-      </div>
-      <div class="subtotal-chip credit">
-        <div class="subtotal-lbl">Credit Owed</div>
-        <div class="subtotal-val" id="st_pers_credit">$—</div>
-      </div>
-    </div>
-
-    <div class="save-row">
-      <button class="save-btn" id="savePersonalBtn">Save</button>
-      <span class="updated-lbl" id="personalUpdatedLbl">Never saved</span>
-      <span class="save-flash" id="personalFlash">Saved ✓</span>
-    </div>
+  <!-- ── Tab bar ──────────────────────────────────────── -->
+  <div class="tab-bar">
+    <button class="tab-pill active" id="tabBtnPersonal">Personal</button>
+    <button class="tab-pill" id="tabBtnBusiness">Business</button>
   </div>
 
-  <!-- ── Business Accounts ─────────────────────────── -->
-  <div class="card">
-    <div class="sect-title">Business Accounts</div>
+  <!-- ── Personal tab ──────────────────────────────────── -->
+  <div id="tabPersonal" class="tab-pane">
 
-    <div class="acct-group">
-      <div class="group-label">Bank Accounts</div>
-      <div class="acct-row">
-        <span class="acct-name">Chase Business Checking</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_chase_checking" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+    <!-- Personal Accounts -->
+    <div class="card">
+      <div class="sect-title">Personal Accounts</div>
+
+      <div class="acct-group">
+        <div class="group-label">Bank Accounts</div>
+        <div class="acct-row">
+          <span class="acct-name">FSB Checking</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_fsb_checking" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="acct-row">
+          <span class="acct-name">FSB Savings</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_fsb_savings" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
         </div>
       </div>
-      <div class="acct-row">
-        <span class="acct-name">Chase Business Savings</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_chase_savings" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+
+      <div class="sect-divider"></div>
+
+      <div class="acct-group">
+        <div class="group-label">Credit Cards</div>
+        <div class="acct-row">
+          <span class="acct-name">Capital One</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_capital_one_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="acct-row">
+          <span class="acct-name">Discover</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_discover_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="acct-row">
+          <span class="acct-name">Scheels</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_scheels_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="sect-divider"></div>
-
-    <div class="acct-group">
-      <div class="group-label">Credit Card</div>
-      <div class="acct-row">
-        <span class="acct-name">Chase Business Credit Card</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_chase_biz_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+      <div class="subtotals">
+        <div class="subtotal-chip">
+          <div class="subtotal-lbl">Cash</div>
+          <div class="subtotal-val" id="st_pers_cash">$—</div>
+        </div>
+        <div class="subtotal-chip credit">
+          <div class="subtotal-lbl">Credit Owed</div>
+          <div class="subtotal-val" id="st_pers_credit">$—</div>
         </div>
       </div>
-    </div>
 
-    <div class="subtotals">
-      <div class="subtotal-chip">
-        <div class="subtotal-lbl">Cash</div>
-        <div class="subtotal-val" id="st_biz_cash">$—</div>
-      </div>
-      <div class="subtotal-chip credit">
-        <div class="subtotal-lbl">Credit Owed</div>
-        <div class="subtotal-val" id="st_biz_credit">$—</div>
+      <div class="save-row">
+        <button class="save-btn" id="savePersonalBtn">Save</button>
+        <span class="updated-lbl" id="personalUpdatedLbl">Never saved</span>
+        <span class="save-flash" id="personalFlash">Saved ✓</span>
       </div>
     </div>
 
-    <div class="save-row">
-      <button class="save-btn" id="saveBusinessBtn">Save</button>
-      <span class="updated-lbl" id="businessUpdatedLbl">Never saved</span>
-      <span class="save-flash" id="businessFlash">Saved ✓</span>
+    <!-- Loans & Debt -->
+    <div class="card">
+      <div class="sect-title">Loans &amp; Debt</div>
+
+      <div class="acct-group">
+        <div class="acct-row">
+          <span class="acct-name">Car Loan</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_car_loan" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="acct-row">
+          <span class="acct-name">Student Loans</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_student_loans" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="acct-row">
+          <span class="acct-name">Dental Implants</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_dental" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+      </div>
+
+      <div class="subtotals">
+        <div class="subtotal-chip credit" style="flex-basis:100%">
+          <div class="subtotal-lbl">Total Remaining Debt</div>
+          <div class="subtotal-val" id="st_debt_total">$—</div>
+        </div>
+      </div>
+
+      <div class="spark-section">
+        <div class="spark-title">Debt Paydown Trend</div>
+        <div id="debtSparkContainer"></div>
+      </div>
+
+      <div class="save-row">
+        <button class="save-btn" id="saveDebtBtn">Save &amp; Record</button>
+        <span class="updated-lbl" id="debtUpdatedLbl">Never saved</span>
+        <span class="save-flash" id="debtFlash">Saved ✓</span>
+      </div>
     </div>
+
+    <!-- Personal Monthly Expenses -->
+    <div class="card">
+      <div class="sect-title">Personal Monthly Expenses</div>
+      <div class="expense-list" id="persExpList"></div>
+      <button class="add-expense-btn" id="addPersExpBtn">+ Add Expense</button>
+      <div class="burn-total-row">
+        <span class="burn-lbl">Monthly Personal Burn</span>
+        <span class="burn-val" id="persBurnTotal">$0.00</span>
+      </div>
+    </div>
+
   </div>
 
-  <!-- ── Loans & Debt ───────────────────────────────── -->
-  <div class="card">
-    <div class="sect-title">Loans &amp; Debt</div>
+  <!-- ── Business tab ───────────────────────────────────── -->
+  <div id="tabBusiness" class="tab-pane" style="display:none">
 
-    <div class="acct-group">
-      <div class="acct-row">
-        <span class="acct-name">Car Loan</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_car_loan" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+    <!-- Business Accounts -->
+    <div class="card">
+      <div class="sect-title">Business Accounts</div>
+
+      <div class="acct-group">
+        <div class="group-label">Bank Accounts</div>
+        <div class="acct-row">
+          <span class="acct-name">Chase Business Checking</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_chase_checking" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div class="acct-row">
+          <span class="acct-name">Chase Business Savings</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_chase_savings" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
         </div>
       </div>
-      <div class="acct-row">
-        <span class="acct-name">Student Loans</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_student_loans" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+
+      <div class="sect-divider"></div>
+
+      <div class="acct-group">
+        <div class="group-label">Credit Card</div>
+        <div class="acct-row">
+          <span class="acct-name">Chase Business Credit Card</span>
+          <div class="bal-wrap"><span class="bal-prefix">$</span>
+            <input class="bal-input" id="b_chase_biz_cc" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+          </div>
         </div>
       </div>
-      <div class="acct-row">
-        <span class="acct-name">Dental Implants</span>
-        <div class="bal-wrap"><span class="bal-prefix">$</span>
-          <input class="bal-input" id="b_dental" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+
+      <div class="subtotals">
+        <div class="subtotal-chip">
+          <div class="subtotal-lbl">Cash</div>
+          <div class="subtotal-val" id="st_biz_cash">$—</div>
+        </div>
+        <div class="subtotal-chip credit">
+          <div class="subtotal-lbl">Credit Owed</div>
+          <div class="subtotal-val" id="st_biz_credit">$—</div>
         </div>
       </div>
-    </div>
 
-    <div class="subtotals">
-      <div class="subtotal-chip credit" style="flex-basis:100%">
-        <div class="subtotal-lbl">Total Remaining Debt</div>
-        <div class="subtotal-val" id="st_debt_total">$—</div>
+      <div class="save-row">
+        <button class="save-btn" id="saveBusinessBtn">Save</button>
+        <span class="updated-lbl" id="businessUpdatedLbl">Never saved</span>
+        <span class="save-flash" id="businessFlash">Saved ✓</span>
       </div>
     </div>
 
-    <div class="spark-section">
-      <div class="spark-title">Debt Paydown Trend</div>
-      <div id="debtSparkContainer"></div>
+    <!-- Business Monthly Expenses -->
+    <div class="card">
+      <div class="sect-title">Business Monthly Expenses</div>
+      <div class="expense-list" id="bizExpList"></div>
+      <button class="add-expense-btn" id="addBizExpBtn">+ Add Expense</button>
+      <div class="burn-total-row">
+        <span class="burn-lbl">Monthly Business Burn</span>
+        <span class="burn-val" id="bizBurnTotal">$0.00</span>
+      </div>
     </div>
 
-    <div class="save-row">
-      <button class="save-btn" id="saveDebtBtn">Save &amp; Record</button>
-      <span class="updated-lbl" id="debtUpdatedLbl">Never saved</span>
-      <span class="save-flash" id="debtFlash">Saved ✓</span>
-    </div>
-  </div>
-
-  <!-- ── Personal Monthly Expenses ─────────────────── -->
-  <div class="card">
-    <div class="sect-title">Personal Monthly Expenses</div>
-    <div class="expense-list" id="persExpList"></div>
-    <button class="add-expense-btn" id="addPersExpBtn">+ Add Expense</button>
-    <div class="burn-total-row">
-      <span class="burn-lbl">Monthly Personal Burn</span>
-      <span class="burn-val" id="persBurnTotal">$0.00</span>
-    </div>
-  </div>
-
-  <!-- ── Business Monthly Expenses ─────────────────── -->
-  <div class="card">
-    <div class="sect-title">Business Monthly Expenses</div>
-    <div class="expense-list" id="bizExpList"></div>
-    <button class="add-expense-btn" id="addBizExpBtn">+ Add Expense</button>
-    <div class="burn-total-row">
-      <span class="burn-lbl">Monthly Business Burn</span>
-      <span class="burn-val" id="bizBurnTotal">$0.00</span>
-    </div>
   </div>
 
 </main>
@@ -1062,6 +1097,21 @@ main {
     wireDebtSection();
     wireExpenseList('persExpList', 'addPersExpBtn');
     wireExpenseList('bizExpList',  'addBizExpBtn');
+
+    // Tab switching
+    const TAB_KEY = 'finance2_tab';
+    function switchTab(tab) {
+      const isPers = tab === 'personal';
+      document.getElementById('tabPersonal').style.display = isPers ? '' : 'none';
+      document.getElementById('tabBusiness').style.display = isPers ? 'none' : '';
+      document.getElementById('tabBtnPersonal').classList.toggle('active', isPers);
+      document.getElementById('tabBtnBusiness').classList.toggle('active', !isPers);
+      try { localStorage.setItem(TAB_KEY, tab); } catch (e) {}
+    }
+    const savedTab = (function () { try { return localStorage.getItem(TAB_KEY); } catch (e) { return null; } })();
+    switchTab(savedTab === 'business' ? 'business' : 'personal');
+    document.getElementById('tabBtnPersonal').addEventListener('click', function () { switchTab('personal'); });
+    document.getElementById('tabBtnBusiness').addEventListener('click', function () { switchTab('business'); });
 
     window.addEventListener('storage', () => {
       const ae = document.activeElement;
