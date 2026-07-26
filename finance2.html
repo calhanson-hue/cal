@@ -682,6 +682,29 @@ main {
   <!-- ── Business tab ───────────────────────────────────── -->
   <div id="tabBusiness" class="tab-pane" style="display:none">
 
+    <!-- Net Business Income Summary -->
+    <div class="card">
+      <div class="sect-title">Net Business Income</div>
+      <div class="summary-grid" style="margin-bottom:0">
+        <div class="sum-panel">
+          <div class="sum-label">Shopify Deposits</div>
+          <div class="sum-value" id="bizIncShopify" style="font-size:18px">$—</div>
+        </div>
+        <div class="sum-panel">
+          <div class="sum-label">Business Expenses</div>
+          <div class="sum-value" id="bizIncExpenses" style="font-size:18px">$—</div>
+        </div>
+        <div class="sum-panel">
+          <div class="sum-label">Withdrawals</div>
+          <div class="sum-value" id="bizIncWithdrawn" style="font-size:18px">$—</div>
+        </div>
+        <div class="sum-panel">
+          <div class="sum-label">Net This Month</div>
+          <div class="sum-value" id="bizIncNet" style="font-size:18px">$—</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Business Accounts -->
     <div class="card">
       <div class="sect-title">Business Accounts</div>
@@ -732,6 +755,65 @@ main {
       </div>
     </div>
 
+    <!-- Business Income -->
+    <div class="card">
+      <div class="sect-title">Business Income</div>
+
+      <div class="log-btn-row">
+        <button class="log-btn" id="logShopifyBtn">+ Log Shopify Deposit</button>
+        <button class="log-btn" id="logOtherIncBtn">+ Log Other Income</button>
+      </div>
+
+      <div id="shopifyForm" class="inline-log-form" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="expense-amt-wrap" style="flex:1;min-width:120px">
+            <span class="bal-prefix">$</span>
+            <input class="expense-amt-input" id="shopifyAmt" type="number" step="0.01" min="0" placeholder="Amount" inputmode="decimal">
+          </div>
+          <input class="spend-date-input" id="shopifyDate" type="date">
+          <button class="save-btn" id="shopifySaveBtn" style="padding:9px 14px">Save</button>
+          <button class="save-btn" id="shopifyCancelBtn" style="padding:9px 12px;background:rgba(255,255,255,0.03)">Cancel</button>
+        </div>
+      </div>
+      <div id="otherIncForm" class="inline-log-form" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="expense-amt-wrap" style="flex:1;min-width:120px">
+            <span class="bal-prefix">$</span>
+            <input class="expense-amt-input" id="otherIncAmt" type="number" step="0.01" min="0" placeholder="Amount" inputmode="decimal">
+          </div>
+          <input class="spend-date-input" id="otherIncDate" type="date">
+          <button class="save-btn" id="otherIncSaveBtn" style="padding:9px 14px">Save</button>
+          <button class="save-btn" id="otherIncCancelBtn" style="padding:9px 12px;background:rgba(255,255,255,0.03)">Cancel</button>
+        </div>
+      </div>
+
+      <div id="bizIncomeList"></div>
+    </div>
+
+    <!-- Owner Withdrawals -->
+    <div class="card">
+      <div class="sect-title">Owner Withdrawals</div>
+
+      <div class="spend-input-row">
+        <div class="expense-amt-wrap" style="flex-shrink:0">
+          <span class="bal-prefix">$</span>
+          <input class="expense-amt-input" id="withdrawAmt" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+        <input class="spend-date-input" id="withdrawDate" type="date">
+        <div class="expense-name-wrap" style="flex:1;min-width:100px">
+          <input class="expense-name-input" id="withdrawNote" type="text" placeholder="Note (optional)" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="save-btn" id="addWithdrawBtn" style="flex-shrink:0;padding:9px 14px">Add</button>
+      </div>
+
+      <div id="withdrawalList"></div>
+
+      <div class="burn-total-row" style="margin-top:10px">
+        <span class="burn-lbl">Withdrawn This Month</span>
+        <span class="burn-val" id="withdrawMonthTotal">$0.00</span>
+      </div>
+    </div>
+
     <!-- Business Monthly Expenses -->
     <div class="card">
       <div class="sect-title">Business Monthly Expenses</div>
@@ -752,8 +834,10 @@ main {
 
   const KEY            = 'finance2_v1';
   const DEBT_ITEMS_KEY = 'finance2_debt_items';
-  const DAILY_SPEND_KEY = 'finance2_daily_spending';
-  const INCOME_KEY      = 'finance2_income_log';
+  const DAILY_SPEND_KEY  = 'finance2_daily_spending';
+  const INCOME_KEY       = 'finance2_income_log';
+  const BIZ_INCOME_KEY   = 'finance2_biz_income_log';
+  const WITHDRAWALS_KEY  = 'finance2_withdrawals';
 
   // ── Account definitions ────────────────────────────────────────────────
   const PERS_CASH   = ['fsb_checking', 'fsb_savings'];
@@ -802,6 +886,20 @@ main {
   }
   function saveIncomeLog(items) {
     try { localStorage.setItem(INCOME_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+  function loadBizIncome() {
+    try { const r = localStorage.getItem(BIZ_INCOME_KEY); if (r) { const a = JSON.parse(r); if (Array.isArray(a)) return a; } } catch (e) {}
+    return [];
+  }
+  function saveBizIncome(items) {
+    try { localStorage.setItem(BIZ_INCOME_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+  function loadWithdrawals() {
+    try { const r = localStorage.getItem(WITHDRAWALS_KEY); if (r) { const a = JSON.parse(r); if (Array.isArray(a)) return a; } } catch (e) {}
+    return [];
+  }
+  function saveWithdrawals(items) {
+    try { localStorage.setItem(WITHDRAWALS_KEY, JSON.stringify(items)); } catch (e) {}
   }
 
   // ── Formatting ──────────────────────────────────────────────────────────
@@ -1032,6 +1130,77 @@ main {
     }).join('');
   }
 
+  function renderBizIncomeSummary() {
+    const month   = thisMonth();
+    const income  = loadBizIncome().filter(function (e) { return e.date && e.date.startsWith(month); });
+    const shopify = income.filter(function (e) { return e.source === 'shopify'; }).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    const other   = income.filter(function (e) { return e.source === 'other'; }).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    const totalIn = shopify + other;
+    const d = load();
+    let bizExp = 0;
+    (d.businessExpenses || []).forEach(function (e) { if (e.amount) bizExp += e.amount; });
+    const totalWithdrawn = loadWithdrawals().filter(function (e) { return e.date && e.date.startsWith(month); }).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    const net = totalIn - bizExp - totalWithdrawn;
+    const g = function (id) { return document.getElementById(id); };
+    if (g('bizIncShopify'))  g('bizIncShopify').textContent   = fmt(shopify);
+    if (g('bizIncExpenses')) g('bizIncExpenses').textContent  = fmt(bizExp);
+    if (g('bizIncWithdrawn')) g('bizIncWithdrawn').textContent = fmt(totalWithdrawn);
+    if (g('bizIncNet')) {
+      g('bizIncNet').textContent = fmt(Math.abs(net));
+      g('bizIncNet').style.color = net >= 0 ? 'var(--good)' : 'var(--bad)';
+    }
+  }
+
+  function renderBizIncomeLog() {
+    const month   = thisMonth();
+    const entries = loadBizIncome().filter(function (e) { return e.date && e.date.startsWith(month); });
+    entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
+    const list = document.getElementById('bizIncomeList');
+    if (!list) return;
+    if (entries.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0">No income logged this month</div>';
+      return;
+    }
+    list.innerHTML = entries.map(function (e) {
+      const lbl   = e.source === 'shopify' ? 'Shopify' : 'Other';
+      const color = e.source === 'shopify' ? '#6ee7b7' : '#fbbf24';
+      return '<div class="daily-entry-row" data-bizinc-id="' + e.id + '">' +
+        '<span class="cat-badge" style="background:' + color + '20;color:' + color + '">' + lbl + '</span>' +
+        '<span style="flex:1"></span>' +
+        '<span class="daily-entry-date">' + (e.date || '') + '</span>' +
+        '<span class="daily-entry-amt">' + fmt(e.amount) + '</span>' +
+        '<button class="remove-btn" data-bizinc-remove="' + e.id + '" aria-label="Remove">\xd7</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderWithdrawals() {
+    const month   = thisMonth();
+    const all     = loadWithdrawals();
+    const entries = all.filter(function (e) { return e.date && e.date.startsWith(month); });
+    entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
+    const list    = document.getElementById('withdrawalList');
+    const totalEl = document.getElementById('withdrawMonthTotal');
+    if (!list) return;
+    let total = 0;
+    if (entries.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0">No withdrawals this month</div>';
+    } else {
+      list.innerHTML = entries.map(function (e) {
+        if (e.amount) total += e.amount;
+        return '<div class="daily-entry-row" data-withdraw-id="' + e.id + '">' +
+          '<span class="cat-badge" style="background:#E0765820;color:#E07658">Withdrawal</span>' +
+          '<span class="daily-entry-desc">' + escHtml(e.note || '') + '</span>' +
+          '<span class="daily-entry-date">' + (e.date || '') + '</span>' +
+          '<span class="daily-entry-amt">' + fmt(e.amount) + '</span>' +
+          '<button class="remove-btn" data-withdraw-remove="' + e.id + '" aria-label="Remove">\xd7</button>' +
+          '</div>';
+      }).join('');
+    }
+    if (totalEl) totalEl.textContent = fmt(total);
+    renderBizIncomeSummary();
+  }
+
   // ── Debt sparkline ──────────────────────────────────────────────────────
   function renderSparkline() {
     const history = (load().debtHistory || []).slice(-20);
@@ -1227,8 +1396,9 @@ main {
     d.businessExpenses = readExpenseList('bizExpList');
     persist(d);
     renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal', true);
-    renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  false);
+    renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  true);
     renderSummary();
+    renderBizIncomeSummary();
     renderCharts();
   }
   function readExpenseList(listId) {
@@ -1271,7 +1441,7 @@ main {
       else                          d.businessExpenses = d.businessExpenses.filter(x => x.id !== id);
       persist(d);
       renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal', true);
-      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  false);
+      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  true);
       renderSummary();
     });
     document.getElementById(addBtnId).addEventListener('click', () => {
@@ -1281,7 +1451,7 @@ main {
       else                          d.businessExpenses.push(newItem);
       persist(d);
       renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal', true);
-      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  false);
+      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  true);
       // Focus the new name input
       const rows = document.getElementById(listId).querySelectorAll('.expense-row');
       if (rows.length > 0) rows[rows.length - 1].querySelector('.expense-name-input')?.focus();
@@ -1370,6 +1540,81 @@ main {
       saveIncomeLog(loadIncomeLog().filter(function (i) { return i.id !== btn.dataset.incomeRemove; }));
       renderIncomeLog();
       renderIncomeSummary();
+    });
+  }
+
+  function wireBizIncome() {
+    function setupBizSource(btnId, formId, amtId, dateId, saveBtnId, cancelBtnId, sourceKey) {
+      const btn       = document.getElementById(btnId);
+      const form      = document.getElementById(formId);
+      const amtEl     = document.getElementById(amtId);
+      const dateEl    = document.getElementById(dateId);
+      const saveBtn   = document.getElementById(saveBtnId);
+      const cancelBtn = document.getElementById(cancelBtnId);
+      if (!btn || !form) return;
+      btn.addEventListener('click', function () {
+        const shown = form.style.display !== 'none';
+        form.style.display = shown ? 'none' : '';
+        btn.classList.toggle('active', !shown);
+        if (!shown) { dateEl.value = todayStr(); amtEl.focus(); }
+      });
+      saveBtn.addEventListener('click', function () {
+        const val = parseFloat(amtEl.value);
+        if (amtEl.value.trim() === '' || isNaN(val) || val <= 0) { amtEl.focus(); return; }
+        const items = loadBizIncome();
+        items.push({ id: uid(), source: sourceKey, amount: Math.round(val * 100) / 100, date: dateEl.value || todayStr() });
+        saveBizIncome(items);
+        amtEl.value = '';
+        form.style.display = 'none';
+        btn.classList.remove('active');
+        renderBizIncomeLog();
+        renderBizIncomeSummary();
+      });
+      cancelBtn.addEventListener('click', function () {
+        form.style.display = 'none';
+        btn.classList.remove('active');
+      });
+      [amtEl, dateEl].forEach(function (el) {
+        if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') saveBtn.click(); });
+      });
+    }
+    setupBizSource('logShopifyBtn',  'shopifyForm',  'shopifyAmt',  'shopifyDate',  'shopifySaveBtn',  'shopifyCancelBtn',  'shopify');
+    setupBizSource('logOtherIncBtn', 'otherIncForm', 'otherIncAmt', 'otherIncDate', 'otherIncSaveBtn', 'otherIncCancelBtn', 'other');
+    document.getElementById('bizIncomeList').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-bizinc-remove]');
+      if (!btn) return;
+      saveBizIncome(loadBizIncome().filter(function (i) { return i.id !== btn.dataset.bizincRemove; }));
+      renderBizIncomeLog();
+      renderBizIncomeSummary();
+    });
+  }
+
+  function wireWithdrawals() {
+    const dateEl = document.getElementById('withdrawDate');
+    if (dateEl) dateEl.value = todayStr();
+    document.getElementById('addWithdrawBtn').addEventListener('click', function () {
+      const amtEl  = document.getElementById('withdrawAmt');
+      const dEl    = document.getElementById('withdrawDate');
+      const noteEl = document.getElementById('withdrawNote');
+      const val    = parseFloat(amtEl.value);
+      if (amtEl.value.trim() === '' || isNaN(val) || val <= 0) { amtEl.focus(); return; }
+      const items  = loadWithdrawals();
+      items.push({ id: uid(), amount: Math.round(val * 100) / 100, date: dEl.value || todayStr(), note: noteEl.value.trim() });
+      saveWithdrawals(items);
+      amtEl.value  = '';
+      dEl.value    = todayStr();
+      noteEl.value = '';
+      renderWithdrawals();
+    });
+    ['withdrawAmt', 'withdrawNote'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('addWithdrawBtn').click(); });
+    });
+    document.getElementById('withdrawalList').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-withdraw-remove]');
+      if (!btn) return;
+      saveWithdrawals(loadWithdrawals().filter(function (i) { return i.id !== btn.dataset.withdrawRemove; }));
+      renderWithdrawals();
     });
   }
 
@@ -1482,10 +1727,13 @@ main {
     document.getElementById('debtUpdatedLbl').textContent     = fmtUpdated(d.debtUpdated);
 
     renderExpenses('persExpList', d.personalExpenses || [], 'persBurnTotal', true);
-    renderExpenses('bizExpList',  d.businessExpenses || [], 'bizBurnTotal',  false);
+    renderExpenses('bizExpList',  d.businessExpenses || [], 'bizBurnTotal',  true);
     renderDailySpending();
     renderIncomeLog();
     renderIncomeSummary();
+    renderBizIncomeLog();
+    renderWithdrawals();
+    renderBizIncomeSummary();
     renderSummary();
     renderCharts();
   }
@@ -1511,6 +1759,8 @@ main {
     wireExpenseList('bizExpList',  'addBizExpBtn');
     wireDailySpending();
     wireIncome();
+    wireBizIncome();
+    wireWithdrawals();
 
     // Tab switching
     const TAB_KEY = 'finance2_tab';
@@ -1546,7 +1796,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initCloudSync !== 'function') return;
   initCloudSync({
     appKey: 'finance2',
-    syncedKeys: ['finance2_v1', 'finance2_debt_items', 'finance2_daily_spending', 'finance2_income_log'],
+    syncedKeys: ['finance2_v1', 'finance2_debt_items', 'finance2_daily_spending', 'finance2_income_log', 'finance2_biz_income_log', 'finance2_withdrawals'],
     onApplied: function () { window.dispatchEvent(new Event('storage')); }
   });
 });
