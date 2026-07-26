@@ -347,6 +347,80 @@ main {
   border-color: rgba(255,255,255,0.25);
   color: var(--text-primary);
 }
+
+/* ── Due day ──────────────────────────────────────── */
+.due-wrap {
+  display: flex; align-items: center;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 8px; flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+.due-wrap:focus-within { border-color: rgba(255,255,255,0.22); }
+.due-lbl {
+  padding: 0 3px 0 8px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary); font-family: var(--font-mono);
+  flex-shrink: 0; user-select: none;
+}
+.due-input {
+  width: 34px; background: transparent; border: none;
+  color: var(--text-primary); font-family: var(--font-mono);
+  font-size: 13px; font-weight: 700;
+  text-align: center; padding: 9px 6px 9px 2px;
+  -webkit-appearance: none;
+}
+.due-input:focus { outline: none; }
+.due-input::placeholder { color: var(--text-tertiary); font-weight: 400; }
+
+/* ── Daily spending & income ──────────────────────── */
+.spend-input-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.spend-cat-select, .spend-date-input {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-primary); padding: 9px 10px; flex-shrink: 0;
+  -webkit-appearance: none; cursor: pointer;
+}
+.spend-cat-select { font-family: var(--font); font-size: 13px; }
+.spend-date-input { font-family: var(--font-mono); font-size: 12px; color-scheme: dark; max-width: 132px; }
+.daily-entry-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 0; border-bottom: 1px solid var(--border); min-height: 40px;
+}
+.daily-entry-row:last-child { border-bottom: none; }
+.cat-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  font-family: var(--font-mono); padding: 3px 7px; border-radius: 5px;
+  flex-shrink: 0; white-space: nowrap;
+}
+.daily-entry-desc {
+  flex: 1; font-size: 13px; color: var(--text-secondary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.daily-entry-date { font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); flex-shrink: 0; }
+.daily-entry-amt {
+  font-size: 14px; font-weight: 700; color: var(--text-primary);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.income-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.log-btn-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.log-btn {
+  flex: 1; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-strong); border-radius: 10px;
+  color: var(--text-secondary); font-family: var(--font);
+  font-size: 13px; font-weight: 600; padding: 10px 12px;
+  cursor: pointer; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.log-btn:hover, .log-btn.active { background: rgba(255,255,255,0.09); color: var(--text-primary); border-color: rgba(255,255,255,0.20); }
+.inline-log-form {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px; margin-bottom: 10px;
+}
+@media (max-width: 480px) {
+  .income-summary { grid-template-columns: 1fr 1fr; }
+  .log-btn-row { flex-direction: column; }
+  .spend-date-input { max-width: 120px; }
+}
 </style>
 </head>
 <body>
@@ -511,6 +585,87 @@ main {
       </div>
     </div>
 
+    <!-- Monthly Income -->
+    <div class="card">
+      <div class="sect-title">Monthly Income</div>
+
+      <div class="income-summary">
+        <div class="sum-panel">
+          <div class="sum-label">FedEx This Month</div>
+          <div class="sum-value" id="incFedex" style="font-size:18px">$—</div>
+        </div>
+        <div class="sum-panel">
+          <div class="sum-label">Zyora This Month</div>
+          <div class="sum-value" id="incZyora" style="font-size:18px">$—</div>
+        </div>
+        <div class="sum-panel">
+          <div class="sum-label">Net Income</div>
+          <div class="sum-value" id="incNet" style="font-size:18px">$—</div>
+        </div>
+      </div>
+
+      <div class="log-btn-row">
+        <button class="log-btn" id="logFedexBtn">+ Log FedEx Paycheck</button>
+        <button class="log-btn" id="logZyoraBtn">+ Log Zyora Deposit</button>
+      </div>
+
+      <div id="fedexForm" class="inline-log-form" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="expense-amt-wrap" style="flex:1;min-width:120px">
+            <span class="bal-prefix">$</span>
+            <input class="expense-amt-input" id="fedexAmt" type="number" step="0.01" min="0" placeholder="Amount" inputmode="decimal">
+          </div>
+          <input class="spend-date-input" id="fedexDate" type="date">
+          <button class="save-btn" id="fedexSaveBtn" style="padding:9px 14px">Save</button>
+          <button class="save-btn" id="fedexCancelBtn" style="padding:9px 12px;background:rgba(255,255,255,0.03)">Cancel</button>
+        </div>
+      </div>
+      <div id="zyoraForm" class="inline-log-form" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="expense-amt-wrap" style="flex:1;min-width:120px">
+            <span class="bal-prefix">$</span>
+            <input class="expense-amt-input" id="zyoraAmt" type="number" step="0.01" min="0" placeholder="Amount" inputmode="decimal">
+          </div>
+          <input class="spend-date-input" id="zyoraDate" type="date">
+          <button class="save-btn" id="zyoraSaveBtn" style="padding:9px 14px">Save</button>
+          <button class="save-btn" id="zyoraCancelBtn" style="padding:9px 12px;background:rgba(255,255,255,0.03)">Cancel</button>
+        </div>
+      </div>
+
+      <div id="incomeList"></div>
+    </div>
+
+    <!-- Daily Spending -->
+    <div class="card">
+      <div class="sect-title">Daily Spending</div>
+
+      <div class="spend-input-row">
+        <div class="expense-name-wrap" style="flex:1;min-width:110px">
+          <input class="expense-name-input" id="spendDesc" type="text" placeholder="Description" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="expense-amt-wrap">
+          <span class="bal-prefix">$</span>
+          <input class="expense-amt-input" id="spendAmt" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+        <select class="spend-cat-select" id="spendCat">
+          <option value="Food">Food</option>
+          <option value="Gas">Gas</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Other">Other</option>
+        </select>
+        <input class="spend-date-input" id="spendDate" type="date">
+        <button class="save-btn" id="addSpendBtn" style="flex-shrink:0;padding:9px 14px">Add</button>
+      </div>
+
+      <div id="spendingList"></div>
+
+      <div class="burn-total-row" style="margin-top:10px">
+        <span class="burn-lbl">Month Spending Total</span>
+        <span class="burn-val" id="spendMonthTotal">$0.00</span>
+      </div>
+    </div>
+
     <!-- Personal Monthly Expenses -->
     <div class="card">
       <div class="sect-title">Personal Monthly Expenses</div>
@@ -597,6 +752,8 @@ main {
 
   const KEY            = 'finance2_v1';
   const DEBT_ITEMS_KEY = 'finance2_debt_items';
+  const DAILY_SPEND_KEY = 'finance2_daily_spending';
+  const INCOME_KEY      = 'finance2_income_log';
 
   // ── Account definitions ────────────────────────────────────────────────
   const PERS_CASH   = ['fsb_checking', 'fsb_savings'];
@@ -632,6 +789,20 @@ main {
   function saveDebtItems(items) {
     try { localStorage.setItem(DEBT_ITEMS_KEY, JSON.stringify(items)); } catch (e) {}
   }
+  function loadDailySpending() {
+    try { const r = localStorage.getItem(DAILY_SPEND_KEY); if (r) { const a = JSON.parse(r); if (Array.isArray(a)) return a; } } catch (e) {}
+    return [];
+  }
+  function saveDailySpending(items) {
+    try { localStorage.setItem(DAILY_SPEND_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+  function loadIncomeLog() {
+    try { const r = localStorage.getItem(INCOME_KEY); if (r) { const a = JSON.parse(r); if (Array.isArray(a)) return a; } } catch (e) {}
+    return [];
+  }
+  function saveIncomeLog(items) {
+    try { localStorage.setItem(INCOME_KEY, JSON.stringify(items)); } catch (e) {}
+  }
 
   // ── Formatting ──────────────────────────────────────────────────────────
   function fmt(n) {
@@ -664,6 +835,9 @@ main {
     return hasAny ? total : null;
   }
   function uid() { return 'e' + Date.now() + '_' + Math.floor(Math.random() * 9999); }
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function thisMonth() { return new Date().toISOString().slice(0, 7); }
+  const CAT_COLORS = { Food: '#6ee7b7', Gas: '#E07658', Shopping: '#a78bfa', Entertainment: '#60a5fa', Other: '#76746E' };
 
   // ── Weekly snapshot — recorded on every Save press ────────────────────────
   // Captures a full cross-section so trend charts have per-section history,
@@ -789,6 +963,73 @@ main {
       }).join('');
     }
     updateDebtSubtotals();
+  }
+
+  // ── Daily spending render ────────────────────────────────────────────────
+  function renderDailySpending() {
+    const month   = thisMonth();
+    const all     = loadDailySpending();
+    const entries = all.filter(function (e) { return e.date && e.date.startsWith(month); });
+    entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
+    const list    = document.getElementById('spendingList');
+    const totalEl = document.getElementById('spendMonthTotal');
+    if (!list) return;
+    let total = 0;
+    if (entries.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0">No entries this month</div>';
+    } else {
+      list.innerHTML = entries.map(function (e) {
+        if (e.amount) total += e.amount;
+        const color = CAT_COLORS[e.category] || CAT_COLORS.Other;
+        return '<div class="daily-entry-row" data-spend-id="' + e.id + '">' +
+          '<span class="cat-badge" style="background:' + color + '20;color:' + color + '">' + escHtml(e.category || 'Other') + '</span>' +
+          '<span class="daily-entry-desc">' + escHtml(e.description || '') + '</span>' +
+          '<span class="daily-entry-date">' + (e.date || '') + '</span>' +
+          '<span class="daily-entry-amt">' + fmt(e.amount) + '</span>' +
+          '<button class="remove-btn" data-spend-remove="' + e.id + '" aria-label="Remove">\xd7</button>' +
+          '</div>';
+      }).join('');
+    }
+    if (totalEl) totalEl.textContent = fmt(total);
+    renderIncomeSummary();
+  }
+
+  function renderIncomeSummary() {
+    const month  = thisMonth();
+    const income = loadIncomeLog().filter(function (e) { return e.date && e.date.startsWith(month); });
+    const fedex  = income.filter(function (e) { return e.source === 'fedex'; }).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    const zyora  = income.filter(function (e) { return e.source === 'zyora'; }).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    const spend  = loadDailySpending().filter(function (e) { return e.date && e.date.startsWith(month); }).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    const net    = (fedex + zyora) - spend;
+    const elF = document.getElementById('incFedex');
+    const elZ = document.getElementById('incZyora');
+    const elN = document.getElementById('incNet');
+    if (elF) elF.textContent = fmt(fedex);
+    if (elZ) elZ.textContent = fmt(zyora);
+    if (elN) { elN.textContent = fmt(Math.abs(net)); elN.style.color = net >= 0 ? 'var(--good)' : 'var(--bad)'; }
+  }
+
+  function renderIncomeLog() {
+    const month   = thisMonth();
+    const entries = loadIncomeLog().filter(function (e) { return e.date && e.date.startsWith(month); });
+    entries.sort(function (a, b) { return b.date.localeCompare(a.date); });
+    const list = document.getElementById('incomeList');
+    if (!list) return;
+    if (entries.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0">No income logged this month</div>';
+      return;
+    }
+    list.innerHTML = entries.map(function (e) {
+      const lbl   = e.source === 'fedex' ? 'FedEx' : 'Zyora';
+      const color = e.source === 'fedex' ? '#60a5fa' : '#a78bfa';
+      return '<div class="daily-entry-row" data-income-id="' + e.id + '">' +
+        '<span class="cat-badge" style="background:' + color + '20;color:' + color + '">' + lbl + '</span>' +
+        '<span style="flex:1"></span>' +
+        '<span class="daily-entry-date">' + (e.date || '') + '</span>' +
+        '<span class="daily-entry-amt">' + fmt(e.amount) + '</span>' +
+        '<button class="remove-btn" data-income-remove="' + e.id + '" aria-label="Remove">\xd7</button>' +
+        '</div>';
+    }).join('');
   }
 
   // ── Debt sparkline ──────────────────────────────────────────────────────
@@ -943,7 +1184,7 @@ main {
   }
 
   // ── Expense list renderer ───────────────────────────────────────────────
-  function renderExpenses(listId, items, burnId) {
+  function renderExpenses(listId, items, burnId, showDue) {
     const list = document.getElementById(listId);
     if (!list) return;
     if (items.length === 0) {
@@ -962,6 +1203,7 @@ main {
               placeholder="0.00" value="${item.amount != null ? item.amount : ''}"
               inputmode="decimal">
           </div>
+          ${showDue ? `<div class="due-wrap"><span class="due-lbl">Due</span><input class="due-input" type="number" min="1" max="31" placeholder="—" inputmode="numeric" value="${item.dueDay != null ? item.dueDay : ''}"></div>` : ''}
           <button class="remove-btn" aria-label="Remove" data-remove="${item.id}">×</button>
         </div>`).join('');
     }
@@ -984,8 +1226,8 @@ main {
     d.personalExpenses = readExpenseList('persExpList');
     d.businessExpenses = readExpenseList('bizExpList');
     persist(d);
-    renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
-    renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
+    renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal', true);
+    renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  false);
     renderSummary();
     renderCharts();
   }
@@ -999,8 +1241,15 @@ main {
       const name   = (row.querySelector('.expense-name-input')?.value || '').trim();
       const amtEl  = row.querySelector('.expense-amt-input');
       const amount = amtEl && amtEl.value.trim() !== '' ? parseFloat(amtEl.value) : null;
+      const dueEl  = row.querySelector('.due-input');
+      const dueDay = dueEl && dueEl.value.trim() !== '' ? parseInt(dueEl.value, 10) : null;
       if (name || amount != null) {
-        items.push({ id, name, amount: amount != null && !isNaN(amount) ? Math.round(amount * 100) / 100 : null });
+        items.push({
+          id,
+          name,
+          amount: amount != null && !isNaN(amount) ? Math.round(amount * 100) / 100 : null,
+          dueDay: dueDay != null && !isNaN(dueDay) && dueDay >= 1 && dueDay <= 31 ? dueDay : null,
+        });
       }
     });
     return items;
@@ -1011,7 +1260,7 @@ main {
     const list = document.getElementById(listId);
     if (!list) return;
     list.addEventListener('input', e => {
-      if (e.target.matches('.expense-name-input,.expense-amt-input')) scheduleExpSave();
+      if (e.target.matches('.expense-name-input,.expense-amt-input,.due-input')) scheduleExpSave();
     });
     list.addEventListener('click', e => {
       const btn = e.target.closest('[data-remove]');
@@ -1021,21 +1270,106 @@ main {
       if (listId === 'persExpList') d.personalExpenses = d.personalExpenses.filter(x => x.id !== id);
       else                          d.businessExpenses = d.businessExpenses.filter(x => x.id !== id);
       persist(d);
-      renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
-      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
+      renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal', true);
+      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  false);
       renderSummary();
     });
     document.getElementById(addBtnId).addEventListener('click', () => {
       const d = load();
-      const newItem = { id: uid(), name: '', amount: null };
+      const newItem = { id: uid(), name: '', amount: null, dueDay: null };
       if (listId === 'persExpList') d.personalExpenses.push(newItem);
       else                          d.businessExpenses.push(newItem);
       persist(d);
-      renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal');
-      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal');
+      renderExpenses('persExpList', d.personalExpenses, 'persBurnTotal', true);
+      renderExpenses('bizExpList',  d.businessExpenses, 'bizBurnTotal',  false);
       // Focus the new name input
       const rows = document.getElementById(listId).querySelectorAll('.expense-row');
       if (rows.length > 0) rows[rows.length - 1].querySelector('.expense-name-input')?.focus();
+    });
+  }
+
+  function wireDailySpending() {
+    const dateEl = document.getElementById('spendDate');
+    if (dateEl) dateEl.value = todayStr();
+
+    document.getElementById('addSpendBtn').addEventListener('click', function () {
+      const descEl = document.getElementById('spendDesc');
+      const amtEl  = document.getElementById('spendAmt');
+      const catEl  = document.getElementById('spendCat');
+      const dEl    = document.getElementById('spendDate');
+      const desc   = descEl.value.trim();
+      const val    = parseFloat(amtEl.value);
+      if (!desc && amtEl.value.trim() === '') { descEl.focus(); return; }
+      const items  = loadDailySpending();
+      items.push({
+        id: uid(), description: desc,
+        amount: amtEl.value.trim() !== '' && !isNaN(val) ? Math.round(val * 100) / 100 : null,
+        category: catEl.value,
+        date: dEl.value || todayStr(),
+      });
+      saveDailySpending(items);
+      descEl.value = '';
+      amtEl.value  = '';
+      dEl.value    = todayStr();
+      renderDailySpending();
+    });
+
+    ['spendDesc', 'spendAmt'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('addSpendBtn').click(); });
+    });
+
+    document.getElementById('spendingList').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-spend-remove]');
+      if (!btn) return;
+      saveDailySpending(loadDailySpending().filter(function (i) { return i.id !== btn.dataset.spendRemove; }));
+      renderDailySpending();
+    });
+  }
+
+  function wireIncome() {
+    function setupSource(btnId, formId, amtId, dateId, saveBtnId, cancelBtnId, sourceKey) {
+      const btn       = document.getElementById(btnId);
+      const form      = document.getElementById(formId);
+      const amtEl     = document.getElementById(amtId);
+      const dateEl    = document.getElementById(dateId);
+      const saveBtn   = document.getElementById(saveBtnId);
+      const cancelBtn = document.getElementById(cancelBtnId);
+      if (!btn || !form) return;
+      btn.addEventListener('click', function () {
+        const shown = form.style.display !== 'none';
+        form.style.display = shown ? 'none' : '';
+        btn.classList.toggle('active', !shown);
+        if (!shown) { dateEl.value = todayStr(); amtEl.focus(); }
+      });
+      saveBtn.addEventListener('click', function () {
+        const val = parseFloat(amtEl.value);
+        if (amtEl.value.trim() === '' || isNaN(val) || val <= 0) { amtEl.focus(); return; }
+        const items = loadIncomeLog();
+        items.push({ id: uid(), source: sourceKey, amount: Math.round(val * 100) / 100, date: dateEl.value || todayStr() });
+        saveIncomeLog(items);
+        amtEl.value = '';
+        form.style.display = 'none';
+        btn.classList.remove('active');
+        renderIncomeLog();
+        renderIncomeSummary();
+      });
+      cancelBtn.addEventListener('click', function () {
+        form.style.display = 'none';
+        btn.classList.remove('active');
+      });
+      [amtEl, dateEl].forEach(function (el) {
+        if (el) el.addEventListener('keydown', function (e) { if (e.key === 'Enter') saveBtn.click(); });
+      });
+    }
+    setupSource('logFedexBtn', 'fedexForm', 'fedexAmt', 'fedexDate', 'fedexSaveBtn', 'fedexCancelBtn', 'fedex');
+    setupSource('logZyoraBtn', 'zyoraForm', 'zyoraAmt', 'zyoraDate', 'zyoraSaveBtn', 'zyoraCancelBtn', 'zyora');
+    document.getElementById('incomeList').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-income-remove]');
+      if (!btn) return;
+      saveIncomeLog(loadIncomeLog().filter(function (i) { return i.id !== btn.dataset.incomeRemove; }));
+      renderIncomeLog();
+      renderIncomeSummary();
     });
   }
 
@@ -1147,8 +1481,11 @@ main {
     document.getElementById('businessUpdatedLbl').textContent = fmtUpdated(d.businessUpdated);
     document.getElementById('debtUpdatedLbl').textContent     = fmtUpdated(d.debtUpdated);
 
-    renderExpenses('persExpList', d.personalExpenses || [], 'persBurnTotal');
-    renderExpenses('bizExpList',  d.businessExpenses || [], 'bizBurnTotal');
+    renderExpenses('persExpList', d.personalExpenses || [], 'persBurnTotal', true);
+    renderExpenses('bizExpList',  d.businessExpenses || [], 'bizBurnTotal',  false);
+    renderDailySpending();
+    renderIncomeLog();
+    renderIncomeSummary();
     renderSummary();
     renderCharts();
   }
@@ -1172,6 +1509,8 @@ main {
     wireDebtSection();
     wireExpenseList('persExpList', 'addPersExpBtn');
     wireExpenseList('bizExpList',  'addBizExpBtn');
+    wireDailySpending();
+    wireIncome();
 
     // Tab switching
     const TAB_KEY = 'finance2_tab';
@@ -1190,7 +1529,7 @@ main {
 
     window.addEventListener('storage', () => {
       const ae = document.activeElement;
-      if (ae && ae.matches('.bal-input,.expense-name-input,.expense-amt-input')) return;
+      if (ae && ae.matches('.bal-input,.expense-name-input,.expense-amt-input,.due-input,.income-amt-input')) return;
       fullRender();
     });
   }
@@ -1207,7 +1546,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initCloudSync !== 'function') return;
   initCloudSync({
     appKey: 'finance2',
-    syncedKeys: ['finance2_v1', 'finance2_debt_items'],
+    syncedKeys: ['finance2_v1', 'finance2_debt_items', 'finance2_daily_spending', 'finance2_income_log'],
     onApplied: function () { window.dispatchEvent(new Event('storage')); }
   });
 });
