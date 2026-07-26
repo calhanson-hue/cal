@@ -479,25 +479,17 @@ main {
     <div class="card">
       <div class="sect-title">Loans &amp; Debt</div>
 
-      <div class="acct-group">
-        <div class="acct-row">
-          <span class="acct-name">Car Loan</span>
-          <div class="bal-wrap"><span class="bal-prefix">$</span>
-            <input class="bal-input" id="b_car_loan" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-          </div>
+      <div id="debtItemList" class="acct-group"></div>
+
+      <div class="expense-row" style="margin-top:10px; gap:8px">
+        <div class="expense-name-wrap">
+          <input class="expense-name-input" id="newLoanName" type="text" placeholder="Loan name" autocomplete="off" spellcheck="false">
         </div>
-        <div class="acct-row">
-          <span class="acct-name">Student Loans</span>
-          <div class="bal-wrap"><span class="bal-prefix">$</span>
-            <input class="bal-input" id="b_student_loans" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-          </div>
+        <div class="expense-amt-wrap">
+          <span class="bal-prefix">$</span>
+          <input class="expense-amt-input" id="newLoanBalance" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
         </div>
-        <div class="acct-row">
-          <span class="acct-name">Dental Implants</span>
-          <div class="bal-wrap"><span class="bal-prefix">$</span>
-            <input class="bal-input" id="b_dental" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
-          </div>
-        </div>
+        <button class="save-btn" id="addLoanBtn" style="flex-shrink:0; padding:9px 14px">Add</button>
       </div>
 
       <div class="subtotals">
@@ -603,14 +595,14 @@ main {
 (function () {
   'use strict';
 
-  const KEY = 'finance2_v1';
+  const KEY            = 'finance2_v1';
+  const DEBT_ITEMS_KEY = 'finance2_debt_items';
 
   // ── Account definitions ────────────────────────────────────────────────
-  const PERS_CASH    = ['fsb_checking', 'fsb_savings'];
-  const PERS_CREDIT  = ['capital_one_cc', 'discover_cc', 'scheels_cc'];
-  const BIZ_CASH     = ['chase_checking', 'chase_savings'];
-  const BIZ_CREDIT   = ['chase_biz_cc'];
-  const DEBT_KEYS    = ['car_loan', 'student_loans', 'dental'];
+  const PERS_CASH   = ['fsb_checking', 'fsb_savings'];
+  const PERS_CREDIT = ['capital_one_cc', 'discover_cc', 'scheels_cc'];
+  const BIZ_CASH    = ['chase_checking', 'chase_savings'];
+  const BIZ_CREDIT  = ['chase_biz_cc'];
 
   // ── Storage ────────────────────────────────────────────────────────────
   function load() {
@@ -621,12 +613,24 @@ main {
     return {
       personalAccounts: {}, personalUpdated: null,
       businessAccounts: {}, businessUpdated: null,
-      debtAccounts: {},     debtHistory: [],    debtUpdated: null,
+      debtHistory: [], debtUpdated: null,
       personalExpenses: [], businessExpenses: [],
     };
   }
   function persist(d) {
     try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  // ── Debt items ─────────────────────────────────────────────────────────
+  function loadDebtItems() {
+    try {
+      const r = localStorage.getItem(DEBT_ITEMS_KEY);
+      if (r) { const a = JSON.parse(r); if (Array.isArray(a)) return a; }
+    } catch (e) {}
+    return [];
+  }
+  function saveDebtItems(items) {
+    try { localStorage.setItem(DEBT_ITEMS_KEY, JSON.stringify(items)); } catch (e) {}
   }
 
   // ── Formatting ──────────────────────────────────────────────────────────
@@ -666,13 +670,13 @@ main {
   // not just the debt total that debtHistory already tracks.
   function recordSnapshot(d) {
     const today = new Date().toISOString().slice(0, 10);
-    const pa = d.personalAccounts || {}, ba = d.businessAccounts || {}, da = d.debtAccounts || {};
+    const pa = d.personalAccounts || {}, ba = d.businessAccounts || {};
     const pe = d.personalExpenses || [], be = d.businessExpenses || [];
     const persCash   = PERS_CASH.reduce((s, k)   => s + (pa[k] || 0), 0);
     const persCredit = PERS_CREDIT.reduce((s, k) => s + (pa[k] || 0), 0);
     const bizCash    = BIZ_CASH.reduce((s, k)    => s + (ba[k] || 0), 0);
     const bizCredit  = BIZ_CREDIT.reduce((s, k)  => s + (ba[k] || 0), 0);
-    const debt       = DEBT_KEYS.reduce((s, k)   => s + (da[k] || 0), 0);
+    const debt       = loadDebtItems().reduce((s, i) => s + (i.balance || 0), 0);
     let persExp = 0; pe.forEach(e => { if (e.amount) persExp += e.amount; });
     let bizExp  = 0; be.forEach(e => { if (e.amount) bizExp  += e.amount; });
     const snap = { date: today, persCash, persCredit, bizCash, bizCredit, debt, persExp, bizExp };
@@ -698,7 +702,6 @@ main {
     const d = load();
     const pa = d.personalAccounts || {};
     const ba = d.businessAccounts || {};
-    const da = d.debtAccounts     || {};
     const pe = d.personalExpenses || [];
     const be = d.businessExpenses || [];
 
@@ -706,7 +709,8 @@ main {
     const persCredit = sumKeys(pa, PERS_CREDIT);
     const bizCash    = sumKeys(ba, BIZ_CASH);
     const bizCredit  = sumKeys(ba, BIZ_CREDIT);
-    const totalDebt  = sumKeys(da, DEBT_KEYS);
+    const debtItems  = loadDebtItems();
+    const totalDebt  = debtItems.length > 0 ? debtItems.reduce((s, i) => s + (i.balance || 0), 0) : null;
 
     let persExpTotal = 0; pe.forEach(e => { if (e.amount) persExpTotal += e.amount; });
     let bizExpTotal  = 0; be.forEach(e => { if (e.amount) bizExpTotal  += e.amount; });
@@ -755,9 +759,36 @@ main {
     document.getElementById('st_biz_credit').textContent = creditHas ? fmt(credit) : '$—';
   }
   function updateDebtSubtotals() {
-    const total   = DEBT_KEYS.reduce((s, k) => s + (parseVal('b_' + k) || 0), 0);
-    const hasAny  = DEBT_KEYS.some(k => parseVal('b_' + k) != null);
-    document.getElementById('st_debt_total').textContent = hasAny ? fmt(total) : '$—';
+    const items = loadDebtItems();
+    let total = 0, hasAny = false;
+    items.forEach(function (item) {
+      const el = document.querySelector('.debt-bal-input[data-debt-id="' + item.id + '"]');
+      const val = el && el.value.trim() !== '' ? parseFloat(el.value) : item.balance;
+      if (val != null && !isNaN(val)) { total += val; hasAny = true; }
+    });
+    const el = document.getElementById('st_debt_total');
+    if (el) el.textContent = (hasAny || items.length > 0) ? fmt(total) : '$—';
+  }
+
+  function renderDebtList() {
+    const items = loadDebtItems();
+    const list = document.getElementById('debtItemList');
+    if (!list) return;
+    if (items.length === 0) {
+      list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);padding:8px 0">No loans added yet</div>';
+    } else {
+      list.innerHTML = items.map(function (item) {
+        const val = item.balance != null ? item.balance : '';
+        return '<div class="acct-row" data-debt-id="' + item.id + '">' +
+          '<span class="acct-name">' + escHtml(item.name) + '</span>' +
+          '<div class="bal-wrap"><span class="bal-prefix">$</span>' +
+          '<input class="bal-input debt-bal-input" data-debt-id="' + item.id + '"' +
+          ' type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal" value="' + val + '"></div>' +
+          '<button class="remove-btn" data-debt-remove="' + item.id + '" aria-label="Remove">\xd7</button>' +
+          '</div>';
+      }).join('');
+    }
+    updateDebtSubtotals();
   }
 
   // ── Debt sparkline ──────────────────────────────────────────────────────
@@ -823,7 +854,6 @@ main {
     const snaps = (d.weeklySnapshot || []).slice(-20);
     const pa    = d.personalAccounts || {};
     const ba    = d.businessAccounts || {};
-    const da    = d.debtAccounts     || {};
     const pe    = d.personalExpenses || [];
     const be    = d.businessExpenses || [];
     const has2  = snaps.length >= 2;
@@ -878,9 +908,12 @@ main {
     } : null, 'Save balances weekly to compare cash vs debt over time');
 
     // 4 — Debt Breakdown Donut
-    const dLabels = ['Capital One','Discover','Scheels','Chase Biz CC','Car Loan','Student Loans','Dental'];
-    const dData   = [pa.capital_one_cc||0, pa.discover_cc||0, pa.scheels_cc||0, ba.chase_biz_cc||0, da.car_loan||0, da.student_loans||0, da.dental||0];
-    const dColors = ['#ff8a8a','#fbbf24','#E07658','#f472b6','#60a5fa','#a78bfa','#34d399'];
+    const debtItems = loadDebtItems();
+    const dBase   = ['Capital One','Discover','Scheels','Chase Biz CC'];
+    const dLabels = dBase.concat(debtItems.map(function (i) { return i.name; }));
+    const dData   = [pa.capital_one_cc||0, pa.discover_cc||0, pa.scheels_cc||0, ba.chase_biz_cc||0]
+                      .concat(debtItems.map(function (i) { return i.balance || 0; }));
+    const dColors = ['#ff8a8a','#fbbf24','#E07658','#f472b6','#60a5fa','#a78bfa','#34d399','#4ade80','#38bdf8','#c084fc'];
     renderChart('wrapDonut','donut', dData.some(v=>v>0) ? {
       type:'doughnut',
       data:{ labels:dLabels, datasets:[{ data:dData, backgroundColor:dColors, borderWidth:1, borderColor:'rgba(0,0,0,0.3)' }] },
@@ -1027,28 +1060,72 @@ main {
   }
 
   function wireDebtSection() {
-    DEBT_KEYS.map(k => document.getElementById('b_' + k)).forEach(el => {
-      if (el) el.addEventListener('input', updateDebtSubtotals);
+    const list = document.getElementById('debtItemList');
+
+    // Live balance edits — persist immediately
+    list.addEventListener('input', function (e) {
+      if (!e.target.matches('.debt-bal-input')) return;
+      const id = e.target.dataset.debtId;
+      const items = loadDebtItems();
+      const item = items.find(function (i) { return i.id === id; });
+      if (item) {
+        const val = parseFloat(e.target.value);
+        item.balance = e.target.value.trim() === '' || isNaN(val) ? null : Math.round(val * 100) / 100;
+        saveDebtItems(items);
+      }
+      updateDebtSubtotals();
     });
-    document.getElementById('saveDebtBtn').addEventListener('click', () => {
+
+    // Delete a loan row
+    list.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-debt-remove]');
+      if (!btn) return;
+      saveDebtItems(loadDebtItems().filter(function (i) { return i.id !== btn.dataset.debtRemove; }));
+      renderDebtList();
+      renderSummary();
+      renderCharts();
+    });
+
+    // Add new loan
+    function doAddLoan() {
+      const nameEl = document.getElementById('newLoanName');
+      const balEl  = document.getElementById('newLoanBalance');
+      const name   = nameEl.value.trim();
+      if (!name) { nameEl.focus(); return; }
+      const val    = parseFloat(balEl.value);
+      const items  = loadDebtItems();
+      items.push({ id: uid(), name: name, balance: balEl.value.trim() !== '' && !isNaN(val) ? Math.round(val * 100) / 100 : null });
+      saveDebtItems(items);
+      nameEl.value = '';
+      balEl.value  = '';
+      renderDebtList();
+      renderSummary();
+      renderCharts();
+      nameEl.focus();
+    }
+    document.getElementById('addLoanBtn').addEventListener('click', doAddLoan);
+    document.getElementById('newLoanName').addEventListener('keydown', function (e) { if (e.key === 'Enter') doAddLoan(); });
+    document.getElementById('newLoanBalance').addEventListener('keydown', function (e) { if (e.key === 'Enter') doAddLoan(); });
+
+    // Save & Record — snapshot total into debtHistory
+    document.getElementById('saveDebtBtn').addEventListener('click', function () {
+      const items = loadDebtItems();
+      const total = items.reduce(function (s, i) { return s + (i.balance || 0); }, 0);
       const d = load();
-      d.debtAccounts = d.debtAccounts || {};
-      DEBT_KEYS.forEach(k => { d.debtAccounts[k] = parseVal('b_' + k); });
-      d.debtUpdated  = new Date().toISOString();
-      // Record history entry (one per day)
+      d.debtUpdated = new Date().toISOString();
       const today   = new Date().toISOString().slice(0, 10);
-      const total   = DEBT_KEYS.reduce((s, k) => s + (d.debtAccounts[k] || 0), 0);
       d.debtHistory = d.debtHistory || [];
-      const existing = d.debtHistory.findIndex(h => h.date === today);
+      const existing = d.debtHistory.findIndex(function (h) { return h.date === today; });
       if (existing >= 0) d.debtHistory[existing].total = total;
-      else               d.debtHistory.push({ date: today, total });
+      else               d.debtHistory.push({ date: today, total: total });
       if (d.debtHistory.length > 24) d.debtHistory.splice(0, d.debtHistory.length - 24);
       persist(d);
       document.getElementById('debtUpdatedLbl').textContent = fmtUpdated(d.debtUpdated);
       flash('debtFlash');
       renderSummary();
       renderSparkline();
-      recordSnapshot(d); renderCharts();
+      recordSnapshot(d);
+      renderCharts();
     });
   }
 
@@ -1057,15 +1134,13 @@ main {
     const d = load();
     const pa = d.personalAccounts || {};
     const ba = d.businessAccounts || {};
-    const da = d.debtAccounts     || {};
 
     populateInputs(pa, [...PERS_CASH, ...PERS_CREDIT]);
     populateInputs(ba, [...BIZ_CASH,  ...BIZ_CREDIT]);
-    populateInputs(da, DEBT_KEYS);
 
     updatePersonalSubtotals();
     updateBusinessSubtotals();
-    updateDebtSubtotals();
+    renderDebtList();
     renderSparkline();
 
     document.getElementById('personalUpdatedLbl').textContent = fmtUpdated(d.personalUpdated);
@@ -1132,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initCloudSync !== 'function') return;
   initCloudSync({
     appKey: 'finance2',
-    syncedKeys: ['finance2_v1'],
+    syncedKeys: ['finance2_v1', 'finance2_debt_items'],
     onApplied: function () { window.dispatchEvent(new Event('storage')); }
   });
 });
